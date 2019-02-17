@@ -16,7 +16,7 @@ function mode = generateSMFmode( n_core, n_clad, core_rad, lambda, dx, coords )
     V = 2*pi*core_rad/lambda*sqrt(n_core^2-n_clad^2); 
     
     % mode parameters (see any fiber optics textbook)
-    u = fzero(@(x) besselj(0,x)./(x.*besselj(1,x)) - besselk(0,sqrt(V^2 - x.^2))./(sqrt(V^2 - x.^2).*besselk(1,sqrt(V^2 - x.^2))),0.4);
+    u = fzero(@(x) besselj(0,x)./(x.*besselj(1,x)) - besselk(0,sqrt(V^2 - x.^2))./(sqrt(V^2 - x.^2).*besselk(1,sqrt(V^2 - x.^2))),1);
     w = sqrt(V^2 - u^2); 
     
     % mode field distributions inside and outside core

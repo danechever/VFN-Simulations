@@ -93,11 +93,12 @@ colormap(parula(256));
 
 %% Coupling map for true SMF
 
+% Parameters for Thorlabs SM2000
 core_rad = 11e-6/2;% Core radius [um]
 lambda = 2e-6;% wavelength [um]
 n_core = 1.4436;% core index
 n_clad = 1.4381;% cladding index
-Fnum = 4.58; % focal ratio
+Fnum = 4.58; % optimal focal ratio
 
 fibermode2 = generateSMFmode( n_core, n_clad, core_rad, lambda, lambda*Fnum/lambdaOverD, coords );
 peak_coupling2 = abs(sum(sum(fibermode2.*PSFv))).^2/totalPower0
