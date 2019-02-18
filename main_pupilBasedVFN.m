@@ -60,7 +60,7 @@ colorbar;
 %% Add Zernike aberration 
 
 noll_index = 2; % Noll index
-coeff = 0.5; % waves rms
+coeff = 0; % waves rms
 [Z,n,m] = generateZernike(noll_index,apRad,coords.RHO,coords.THETA);
 Z = Z/sqrt(mean(Z(logical(EP)).^2)); % Re-normalize (useful when pupil is not a circle)
 ABER = exp(1i*2*pi*coeff*Z);
@@ -90,7 +90,7 @@ colormap(parula(256));
 
 fiberDiam = 1.4; % units of lambda/D
 
-fibermode0 = generateFiberMode(fiberDiam*lambdaOverD,coords);
+fibermode0 = generateSMFmode_gaussian(fiberDiam*lambdaOverD,coords);
 
 coupling_eff_map = generateCouplingMap( fibermode0, PSFv, totalPower0, 3*lambdaOverD);
 
@@ -112,7 +112,7 @@ if(produceThptCurve)
 
 %         fibermode0 = sqrt(2/(pi*(fiberDiam*lambdaOverD/2)^2))* ...
 %             exp(-(RHO/(fiberDiam*lambdaOverD/2)).^2);
-        fibermode0 = generateFiberMode(fiberDiam*lambdaOverD,coords);
+        fibermode0 = generateSMFmode_gaussian(fiberDiam*lambdaOverD,coords);
 
         coupling_planet = [];
         for angSep = angSeps
