@@ -1,5 +1,5 @@
-function couplingEffMap = generateCouplingMap( fiberMode, E_PSF, totalPower, cropsize)
-%couplingEffMap = generateCouplingMap( fiberMode, E_PSF, totalPower, cropsize)
+function couplingEffMap = generateCouplingMap( fiberMode, E_PSF, totalPower, cropsize, coords)
+%couplingEffMap = generateCouplingMap( fiberMode, E_PSF, totalPower, cropsize, coords)
 %   Generates a 2D map of the coupling efficiency versus source position.
 %   
 %   Inputs:
@@ -17,6 +17,8 @@ function couplingEffMap = generateCouplingMap( fiberMode, E_PSF, totalPower, cro
     croprows = rowsMode/2-round(cropsize/2)+1:rowsMode/2+round(cropsize/2);
     cropcols = colsMode/2-round(cropsize/2)+1:colsMode/2+round(cropsize/2);
 
+    fiberMode = fiberMode.*(coords.RHO<cropsize/2);
+    
     fibermode_cropped = fiberMode(croprows,cropcols);
 
     couplingEffMap = abs(conv2(E_PSF,fibermode_cropped,'same')).^2/totalPower;
