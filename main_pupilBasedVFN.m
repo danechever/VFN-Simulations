@@ -132,7 +132,7 @@ fibermode0 = generateSMFmode( n_core, n_clad, core_rad, lambda, lambda*Fnum/lamb
 
 %fibermode0 = generateSMFmode_gaussian(fiberDiam*lambdaOverD,coords);
 
-coupling_eff_map = generateCouplingMap( fibermode0, PSFv, totalPower0, 3*lambdaOverD);
+coupling_eff_map = generateCouplingMap( fibermode0, PSFv, totalPower0, 3*lambdaOverD, coords);
 
 figure(5)
 imagesc(xvals/lambdaOverD,yvals/lambdaOverD,coupling_eff_map);
