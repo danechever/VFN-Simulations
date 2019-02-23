@@ -21,15 +21,14 @@ function [pt,rvec,qvec] = polarTransform(input_image, center_vec, rmax, numRadPt
     angleComp = repmat(qvec, numRadPts, 1);% 2D array of azimuthal points 
     [xComp,yComp] = pol2cart(angleComp,radialComp);% Transform desired polar coords into cartesian coords
     
-    % Make meshgrid correspond to image coordinates 
+    % Make image coordinates 
     [rows,cols] = size(input_image);
-    [X,Y] = meshgrid(1:cols,1:rows);
     
-    Xvals = X - center_vec(1);
-    Yvals = Y - center_vec(2);
+    xvals = (1:rows) - center_vec(1);
+    yvals = (1:cols) - center_vec(2);
     
     % compute polar transform
-    pt = interp2(Xvals,Yvals,double(input_image),xComp,yComp,method);
+    pt = interp2(xvals,yvals,double(input_image),xComp,yComp,method);
 
 end
 
