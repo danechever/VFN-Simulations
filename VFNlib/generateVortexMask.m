@@ -1,8 +1,13 @@
 function mask = generateVortexMask( charge, coords, offsets )
-%UNTITLED3 Summary of this function goes here
-%   Detailed explanation goes here
-
-mask = exp(1i*charge*atan2(coords.Y-offsets(2),coords.X-offsets(1)));
+%mask = generateVortexMask( charge, coords, offsets )
+%   Generates array with representation of a vortex phase mask
+%
+    
+    mask = zeros(coords.N,coords.N,numel(charge));
+    
+    for index = 1:numel(charge)
+        mask(:,:,index) = exp(1i*charge(index)*atan2(coords.Y-offsets(2),coords.X-offsets(1)));
+    end
 
 end
 
