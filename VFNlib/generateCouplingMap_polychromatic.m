@@ -34,7 +34,9 @@ function coupling_eff_map_cube = generateCouplingMap_polychromatic( Epup, fiber_
         if(strcmpi('bessel',fiber_props.type))
             fibermode = generateSMFmode( fiber_props.n_core, fiber_props.n_clad, fiber_props.core_rad, lam, lam*fiber_props.Fnum/lambdaOverD, coords );
         elseif(strcmpi('gaussian',fiber_props.type))
-            fibermode = generateSMFmode_gaussian(fiber_props.fiberDiam*lambdaOverD/lam_frac,coords);
+            MFD = getMFD(fiber_props);% meters
+            MFD_lamoverd = MFD/(lam*fiber_props.Fnum);% lambda/D
+            fibermode = generateSMFmode_gaussian(MFD_lamoverd*lambdaOverD,coords);
         end
         
         % Compute the monochromatic coupling map (spatial units of lambda/D)
