@@ -1,5 +1,5 @@
-function coupling_eff_map_cube = generateCouplingMap_polychromatic( Epup, fiber_props, lambda0, lambdas, totalPower, lambdaOverD, cropsize, coords)
-%coupling_eff_map_cube = generateCouplingMap_polychromatic( Epup, fiber_props, lambda0, lambdas, totalPower, lambdaOverD, cropsize, coords)
+function coupling_eff_map_cube = generateCouplingMap_polychromatic( Epup, fiber_props, lambda0, Fnum, lambdas, totalPower, lambdaOverD, cropsize, coords)
+%coupling_eff_map_cube = generateCouplingMap_polychromatic( Epup, fiber_props, lambda0, Fnum, lambdas, totalPower, lambdaOverD, cropsize, coords)
 %   Generates a 2D maps of the coupling efficiency versus source position.
 %   Returns cube of maps with dimensions (NxNxnumWavelengths)
 %   
@@ -7,6 +7,7 @@ function coupling_eff_map_cube = generateCouplingMap_polychromatic( Epup, fiber_
 %       Epup: the entrance pupil field (NxNxnumWavelengths)
 %       fiber_props: structure of fiber properties 
 %       lambda0: central wavelength (meters)
+%       Fnum: focal ratio at the fiber (f/Dbeam)
 %       lambdas: wavelengths (meters)
 %       totalPower: Total power/energy in the PSF at lambda0; i.e. sum(abs(E_PSF(:)).^2))
 %       lambdaOverD: samples per lambda/D in the image plane
@@ -30,14 +31,8 @@ function coupling_eff_map_cube = generateCouplingMap_polychromatic( Epup, fiber_
         % Compute PSF field
         PSFv = myfft2(Epup(:,:,ch)); 
         
-        % Get fiber mode
-        if(strcmpi('bessel',fiber_props.type))
-            fibermode = generateSMFmode( fiber_props.n_core, fiber_props.n_clad, fiber_props.core_rad, lam, lam*fiber_props.Fnum/lambdaOverD, coords );
-        elseif(strcmpi('gaussian',fiber_props.type))
-            MFD = getMFD(fiber_props);% meters
-            MFD_lamoverd = MFD/(lam*fiber_props.Fnum);% lambda/D
-            fibermode = generateSMFmode_gaussian(MFD_lamoverd*lambdaOverD,coords);
-        end
+        % Generate the fiber mode for this wavelength with proper scaling
+        fibermode = generateSMFmode( fiber_props, lam, Fnum, lambdaOverD, coords);
         
         % Compute the monochromatic coupling map (spatial units of lambda/D)
         map = generateCouplingMap( fibermode, PSFv, totalPower, cropsize, coords);

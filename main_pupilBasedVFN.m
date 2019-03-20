@@ -122,13 +122,14 @@ fiberDiam = 1.45; % units of lambda/D
 
 % Parameters for Thorlabs SM600
     % link: https://www.thorlabs.com/NewGroupPage9_PF.cfm?ObjectGroup_ID=949
-core_rad = 4.3e-6/2;% Core radius [um]
+fiber_props.type = 'bessel';
+fiber_props.core_rad = 4.3e-6/2;% Core radius [um]
 lambda = 635e-9;% wavelength [um]
-n_core = 1.4606;% core index (interpolated from linear fit to 3 points)
-n_clad = 1.4571;% cladding index (interpolated from linear fit to 3 points)
+fiber_props.n_core = 1.4606;% core index (interpolated from linear fit to 3 points)
+fiber_props.n_clad = 1.4571;% cladding index (interpolated from linear fit to 3 points)
 Fnum = 5; % optimal focal ratio
 
-fibermode0 = generateSMFmode( n_core, n_clad, core_rad, lambda, lambda*Fnum/lambdaOverD, coords );
+fibermode0 = generateSMFmode( fiber_props, lambda, Fnum, lambdaOverD, coords);
 
 %fibermode0 = generateSMFmode_gaussian(fiberDiam*lambdaOverD,coords);
 

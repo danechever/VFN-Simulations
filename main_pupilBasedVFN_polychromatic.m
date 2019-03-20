@@ -8,8 +8,8 @@ N = 2^12; % Size of computational grid (NxN samples)
 apRad = 256; % Aperture radius in samples 
 
 % Define wavelength info
-lambda0 = 635e-9; %central wavelength
-fracBW = 0.4; %\Delta\lambda/\lambda
+lambda0 = 650e-9; %central wavelength
+fracBW = 0.5; %\Delta\lambda/\lambda
 numWavelengths = 5;% number of discrete wavelengths 
 lambdas = getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths (meters)
 
@@ -19,7 +19,7 @@ charge = lambda0./lambdas; % simple scalar model
 
 % Define wavefront error at the central wavelength
 nolls = 4:8;
-coeffs = [0.01,-0.0099,-0.0095,-0.0008,0.0033];
+coeffs = 0*[0.01,-0.0099,-0.0095,-0.0008,0.0033];
 
 % Give offsets for the vortex mask
 offsetX = 0;%0.0952*apRad;
@@ -114,10 +114,10 @@ drawnow;
 fiber_props.core_rad = 4.3e-6/2;% Core radius [um]
 fiber_props.n_core = 1.4606;% core index (interpolated from linear fit to 3 points)
 fiber_props.n_clad = 1.4571;% cladding index (interpolated from linear fit to 3 points)
-fiber_props.Fnum = 5; % focal ratio of the beam at the fiber
+Fnum = 5; % focal ratio of the beam at the fiber
 fiber_props.type = 'bessel';
 
-eta_maps = generateCouplingMap_polychromatic( Epup.*EPM, fiber_props, lambda0, lambdas, totalPower0, lambdaOverD, 3*lambdaOverD, coords);
+eta_maps = generateCouplingMap_polychromatic( Epup.*EPM, fiber_props, lambda0, Fnum, lambdas, totalPower0, lambdaOverD, 3*lambdaOverD, coords);
 
 figure(6);
 for ch = 1:numWavelengths
