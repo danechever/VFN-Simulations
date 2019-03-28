@@ -15,8 +15,8 @@ function MFD = getMFD( fiber_props, lambda )
 
     % Normalized frequency 
     V = 2*pi*fiber_props.core_rad/lambda*NA; 
+    
     % Mode field diameter
     MFD = 2*fiber_props.core_rad*(0.65 + 1.619*V.^-1.5 + 2.879*V.^-6);
-
 
 end

@@ -7,7 +7,7 @@ function mode = generateSMFmode( fiber_props, lambda, Fnum, lambdaFnum_samps, co
 %           fiber_props.n_core - core index 
 %           fiber_props.n_clad - cladding index 
 %           fiber_props.NA - numerical aperture (can be defined instead of
-%                            n_core and n_clad.
+%                            n_core and n_clad).
 %           fiber_props.core_rad - core radius  
 %
 %       lambda: wavelength (meters)
@@ -27,7 +27,7 @@ function mode = generateSMFmode( fiber_props, lambda, Fnum, lambdaFnum_samps, co
         mode = generateSMFmode_bessel( fiber_props.NA, fiber_props.core_rad, lambda, lambda*Fnum/lambdaFnum_samps, coords );
     elseif(strcmpi('gaussian',fiber_props.type))
         MFD = getMFD(fiber_props,lambda);% meters
-        MFD_lamoverd = MFD/(lambda*Fnum);% lambda/D
+        MFD_lamoverd = MFD/(lambda*Fnum);% units of lambda/D
         mode = generateSMFmode_gaussian(MFD_lamoverd*lambdaFnum_samps,coords);
     end
 
