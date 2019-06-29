@@ -1,5 +1,5 @@
 function [PUPIL,circum_diam] = makeKeckPupil( N_flat2flat, Ngrid )
-%PUPIL = makeKeckPupil( rad, Ngrid )
+%PUPIL = makeKeckPupil( N_flat2flat, Ngrid )
 %   Generates the Keck pupil.
 %
 %   Inputs: 
