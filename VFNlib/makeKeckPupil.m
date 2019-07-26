@@ -9,6 +9,7 @@ function [PUPIL,circum_diam] = makeKeckPupil( N_flat2flat, Ngrid )
 %
 %   Returns:
 %       PUPIL - 2D array containing the Keck pupil
+%       circum_diam - Circumscribed diameter in pixels
     
     addpath([fileparts(which(mfilename)),'/segMirrorFunctions']);
     apDia0 = N_flat2flat; % flat to flat diameter in samples 
