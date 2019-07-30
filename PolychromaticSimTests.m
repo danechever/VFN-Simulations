@@ -76,7 +76,7 @@ apRad = 128; % Aperture radius in samples
 % Define wavelength info
 lambda0 = 2200e-9; %central wavelength
 fracBW = 0.20; %\Delta\lambda/\lambda
-numWavelengths = 5;% number of discrete wavelengths 
+numWavelengths = 3;% number of discrete wavelengths 
 lambdas = getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths (meters)
 
 % Define charge of the vortex mask at each wavelength
@@ -84,11 +84,11 @@ charge = 2*ones(1,numWavelengths); % achromatic
 %charge = 2*lambda0./lambdas; % simple scalar model
 
 % Define wavefront error at the central wavelength
-nolls = [5, 6];
-coeffs = 1*[0.025, 0.01];
+nolls = [2, 5, 6];
+coeffs = 1*[0.01, 0.025, 0.01];
 % Create matrix-version of coeffs to simulate changing WFE
-wfSamps = 50;                      % Number of WF samples to synthesize
-wfModPhzEnd = 4*pi;
+wfSamps = 10;                      % Number of WF samples to synthesize
+wfModPhzEnd = 2*pi;
 wfMod = nan(wfSamps, length(nolls));
 for i = 1:length(nolls)
     phzShift = rand*2*pi;
@@ -105,15 +105,15 @@ offsetY = 0*apRad;%0.0524*apRad;
 % Flag to plot coupling maps in log scale
 islogcoup = true;
 
-% Flag to plot intermediate figure (before SPIE figure)
+% Flag to plot intermediate figures (before SPIE figure)
 isPlotSimp = true;
 
 %-- Saving parameters
 % Flag to save data
-isSaveGif = false;
+isSaveGif = true;
 % Save folder
 svfld = 'C:\Users\danie\Desktop\';
-svnm  = 'PhaseShiftedGif.gif';
+svnm  = 'NullSpectraGood.gif';
 
 %% Generate the coordinate system
 
@@ -258,9 +258,10 @@ end
 subplot = @(m,n,p) subtightplot (m, n, p, [0.12 0.06], [0.1 0.05], [0.05 0.05]);
 
 % Define font and linewidth sizes
-fontszAx = 12;
+fontszAx = 14;
 fontblAx = 'normal';
 fontszTi = 14;
+markerSz = 40;
 
 % Preallocate additional matrices
 eta_ss = nan(wfSamps, 1);
@@ -295,9 +296,9 @@ prg = 1;        % Average over region +/-prg pixels wide
 wfr = phzs/2/pi*lambda0*1e9;
 % Plot
 axWFR = subplot(2,3,1); 
-datWFR = imagesc(xvals/apRad,yvals/apRad,squeeze(wfr(1,:,:)));
+datWFR = imagesc(xvals/pupCircDiam,yvals/pupCircDiam,squeeze(wfr(1,:,:)));
 axis image; 
-axis([-1 1 -1 1]);
+axis([-0.5 0.5 -0.5 0.5]);
 set(axWFR, 'TickDir', 'out');
 title(['Wavefront Residuals at ',num2str(lambdas(lam0)*1e9),'nm'], 'FontSize', fontszTi);
 xlabel('x/D', 'FontWeight', fontblAx, 'FontSize', fontszAx)
@@ -318,7 +319,11 @@ axis(axlimPSF);
 title('Broadband PSF w/ vortex', 'FontSize', fontszTi);
 xlabel('\lambda/D', 'FontWeight', fontblAx, 'FontSize', fontszAx)
 ylabel('\lambda/D', 'FontWeight', fontblAx, 'FontSize', fontszAx)
-colorbar;%caxis([-3 0])
+psfCBAR = colorbar; 
+psfCBAR.Label.String = 'Normalized Irradiance';
+psfCBAR.Label.FontWeight = fontblAx;
+psfCBAR.Label.FontSize = fontszAx;
+%caxis([-3 0])
 colormap(parula(256));
 caxis([min(iPSFv_BBs, [], 'all') max(iPSFv_BBs, [], 'all')])
 
@@ -339,7 +344,7 @@ eta_sLs = squeeze(eta_mapss(:, eta_sInd(1), eta_sInd(2), :))*eta_sYSCL;
 eta_ss(1) = mean(eta_sLs(1,:), 2);   
 % Plot
 axNull = subplot(2,3,5);
-datNull = scatter(1:wfSamps, eta_ss);
+datNull = scatter(1:wfSamps, eta_ss, markerSz, 'b', 'MarkerFaceColor', 'flat');
 if ~isaxYlimEtaS
     axYlimEtaS(2) = 1.2*max(eta_sLs(:));
 end
@@ -364,7 +369,7 @@ end
 eta_ps(1) = mean(eta_pAvgs(1,:,eta_pInd-prg:eta_pInd+prg), [2 3])*100;  % convert to [%]
 % Plot
 axPeak = subplot(2,3,4);
-datPeak = scatter(1:wfSamps, eta_ps);
+datPeak = scatter(1:wfSamps, eta_ps, markerSz, 'r', 'MarkerFaceColor', 'flat');
 ylim(axYlimEtaP)
 xlim([0 wfSamps])
 box on
@@ -384,10 +389,13 @@ set(crc2.Children(2), 'Visible', 'off');   % Hide outline of circle
 axis image;
 axis(axlim2DETA);
 set(axEMap, 'TickDir', 'out');
-title(['\eta at ',num2str(lambdas(lam0)*1e9),'nm'], 'FontSize', fontszTi);
+title(['Coupling at ',num2str(lambdas(lam0)*1e9),'nm'], 'FontSize', fontszTi);
 xlabel('\lambda/D', 'FontWeight', fontblAx, 'FontSize', fontszAx)
 ylabel('\lambda/D', 'FontWeight', fontblAx, 'FontSize', fontszAx)
-colorbar;
+EMapCBAR = colorbar; 
+EMapCBAR.Label.String = '\eta';
+EMapCBAR.Label.FontWeight = fontblAx;
+EMapCBAR.Label.FontSize = fontszAx;
 colormap(gray(256));
 caxis([min(eta_mapss, [], 'all') max(eta_mapss, [], 'all')])
 
@@ -398,7 +406,7 @@ eta_pLs(1,:) = mean(eta_pAvgs(1,:,eta_pInd-1:eta_pInd+1),3)*100;
 axCoup = subplot(2,3,6);
 title('Coupling Fractions Across Band', 'FontSize', fontszTi)
 yyaxis left
-datCoupSLin = plot(lambdas*1e9, eta_sLs(1,:), '-o');
+datCoupSLin = plot(lambdas*1e9, eta_sLs(1,:), 'b-o', 'MarkerFaceColor', 'b');
 %hold on
 %datCoupSSca = scatter(lambdas*1e9, eta_sLs(1,:));
 %hold off
@@ -406,12 +414,14 @@ ylim(axYlimEtaS)
 ylabel(['\eta_s [\times 10^{-' num2str(log10(eta_sYSCL)) '}]'], 'FontWeight', fontblAx, 'FontSize', fontszAx)
 xlabel('Wavelength [nm]', 'FontWeight', fontblAx, 'FontSize', fontszAx)
 yyaxis right
-datCoupPLin = plot(lambdas*1e9, eta_pLs(1,:), '-o');
+datCoupPLin = plot(lambdas*1e9, eta_pLs(1,:), 'r-o', 'MarkerFaceColor', 'r');
 %hold on
 %datCoupPSca = scatter(lambdas*1e9, eta_pLs(1,:));
 %hold off
 ylim(axYlimEtaP)
 ylabel('\eta_p [%]', 'FontWeight', fontblAx, 'FontSize', fontszAx)
+
+drawnow
 
 %% Iterate through remaining samples, updating/saving figure each time
 
