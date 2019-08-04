@@ -48,8 +48,11 @@ Notes:___
 * Keck pupil is used instead of simple circle.
 * Synthetic WF residuals are modulated accross samples using sine function to 
     have continuously variable WF.
+    ** [Updated] This is now optional.
 * Magnitude of each WF residual across samples is plotted at the end.
     ** [Updated] This is only done when a synthetic WF is used
+    ** [Updated] This is done for both synthetic and real wavefronts and is done
+        at the beginning (for synthetic) or live during the loop (for real)
 * "subtightplot" library is used to provide control of subplot location.
     * This is NOT a native matlab library; user must download from file exchange
 * Full figure is only plotted once and then only the data is updated on each
@@ -66,11 +69,23 @@ Notes:___
     - Once the WF is oriented and scaled correctly, our simulated keck pupil
         (which includes central obscuration, spiders, fine outer pattern, etc.)
         is applied to the WF data. 
+    ** [Updated] Fudge-factors have been added for user to tune the centering,
+        orientation, and size of the simulated pupil within the WF data to
+        ensure it is sampling the same region as the real pupil mask.
+    ** [Updated] the raw WF (described above) can be used directly or a zernike
+        decomp can be done and this reconstructed wavefront can be applied
+        instead.
 * Plotting is now done much more efficiently:
     - As before, main figure is only produced once and then updated.
     - However, instead of saving all frames of all the data, only the current
         frame's is saved and this gets overwritten on each WF sample iteration.
     - This vastly decreases RAM use and increases calculation speed.
+* Code now handles tip/tilt residuals as well as ADC residulas
+    - User can input a tip/tilt residual fits file to process real data. This
+        file must be in [arcsec] and have dimensionality [wfSamps, ti[/tilt]
+    - Synthetic residuals can also be provided in [mas] directly. These can be
+        modulated in the code or kept constant.
+    - ADC residuals are provided at each sample and wavelength.
 %}
 
 clear; %close all; 
@@ -86,33 +101,85 @@ apRad = 128; % Aperture radius in samples
 % Define wavelength info
 lambda0 = 2200e-9; %central wavelength
 fracBW = 0.20; %\Delta\lambda/\lambda
-numWavelengths = 3;% number of discrete wavelengths 
+numWavelengths = 5;% number of discrete wavelengths 
 lambdas = getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths (meters)
 
 % Define charge of the vortex mask at each wavelength
-charge = 2*ones(1,numWavelengths); % achromatic
+charge = 0*ones(1,numWavelengths); % achromatic
 %charge = 2*lambda0./lambdas; % simple scalar model
 
-%--- Define wavefront error at the central wavelength
+%--- Define wavefront residuals at the central wavelength
 isrealWF = false;      % Flag to mark if real or synthetic WFs should be used
 if isrealWF
     % Real WF data parameters
     wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
     wfRSN = 'residualWF.fits';          % Filename for residuals
     wfMKN = 'DMPupil.fits';             % Filename for pupil mask on residuals
+    % NOTE::: Raw data assumed to be in [Volts]
     % Define sample start and end values
     wfstrt = 100;
     wfSamps = 20;
     % Scaling factor for data (nm/V)
     wfSCL = 600;     
+    % Zernikes to plot in figure
+    nolls = [2, 3, 5, 6];
+    % Flag to choose if WF reconstruction or raw WF should be used
+    israwWF = true;
+    % Number of zernike modes used in reconstruction
+    recNMds = 36;
     %%%% NOTE:::: DEAL WITH MANUAL CORRECTIONS IN WF SECTION BELOW!!!
 else
     % Synthetic wavefront parameters
     nolls = [2, 5, 6];
-    coeffs = 1*[0.01, 0.025, 0.01];    % Waves RMS
+    coeffs = 0*[0.01, 0.025, 0.01];    % Waves RMS at given nolls
     wfSamps = 10;                      % Number of WF samples to synthesize
-    wfModPhzEnd = 2*pi;                % Phase end (without delay)
+    isWFPhzMod = true;                % Flag to chose if phase should be modulated
+    wfModPhzEnd = 2*pi;                % Temporal modulation phase end (without delay)
 end
+
+%-- Define Tip/Tilt residuals  (ADC PARAMS ARE DEFINED SEPARATELY)
+% NOTE::: To disable TT residuals, use isrealTT = false and set ttres = [0 0];
+isrealTT = false;      % Flag to mark if real or synthetic TTs should be used
+% Scaling factor for data (arcsec to waves RMS)
+keckD = 10.949;                 % Real-world keck pupil diameter [m] - 10.949 = circumscribed
+ttSCL = keckD/206265/lambda0;       % (D in [m])/(arcsec/rad)/(lambda in [m])  = arcsec2wavesPV
+% Vectorize to include PV2RMS conversion for both pupil axes separately
+    % PV2RMS values determined empirically using generateZernike_fromlist then
+    % confirmed by setting ttres = 41.4mas and confirming 1lam/D PSF shift since
+    % 41.4mas = 1lam/D @2.2um
+ttSCL = ttSCL*ones(2,1)./[3.819513, 4.212690]'; 
+if isrealTT
+    % Real TT data parameters
+    ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
+    ttRSN = 'residualTT.fits';          % Filename for residuals
+    % NOTE::: raw data assumed to be in [arcsec]
+    % Define sample start and end values
+    if exist('wfstrt', 'var')
+        % By default, use wfstrt when defined
+        ttstrt = wfstrt;
+    else
+        % NOTE::: If wfstrt is not defined, user must define a ttsrt manually
+        ttstrt = 100;
+    end
+    % no ttSamps since should sample exactly as many TTs as WFs  
+else
+    % Synthetic TT parameters
+    ttres = 0*[0, 41.4];    % Peak TT error in [mas] at central wavelength
+    isTTPhzMod = false;     % Flag to chose if phase should be modulated
+    ttModPhzEnd = 2*pi;     % Temporal modulation phase end (without delay) 
+end
+
+%-- Define ADC residuals:   in [mas]
+% NOTE::: To have disable ADC residuals, set adcres = to all 0's
+%adcres = 0*ones(2,numWavelengths);         % Disable ADC residuals
+% NOTE::: To define constant ADC residuals, provide 2D matrix here
+adcres = 1*[-37.3 -39.4 41.4 43.5 45.6;...         % Tip residuals at each wavelength
+            0 0 0 0 0];          % Tilt residuals at each wavelenght
+% Make into 3D matrix with dimensionaly: [wfSamps, tip/tilt, wavelength]
+adcres = permute(repmat(adcres, 1, 1, wfSamps),[3 1 2]);
+% NOTE::: To provide time-varyin ADC:
+% Optionally, provide 3D matrix directly with time-varying ADC residuals
+    % Dimensionality still needs to match [wfSamps, tip/tilt, wavelength]
 
 % Give offsets for the vortex mask
 offsetX = 0*apRad;%0.0952*apRad;
@@ -122,14 +189,14 @@ offsetY = 0*apRad;%0.0524*apRad;
 islogcoup = true;
 
 % Flag to plot intermediate figures (before SPIE figure)
-isPlotSimp = false;
+isPlotSimp = true;
 
 %-- Saving parameters
 % Flag to save data
 isSaveGif = false;
 % Save folder
 svfld = 'C:\Users\danie\Desktop\';
-svnm  = 'RealWF_noTT_Samp100-120.gif';
+svnm  = 'RealWF_noTT_Samp100-120_5Lam_2.gif';
 
 %% Generate the coordinate system
 
@@ -142,10 +209,10 @@ yvals = coords.yvals;
 %PUPIL = makeCircularPupil( apRad, N );
 [PUPIL, pupCircDiam] = makeKeckPupil( 2*apRad, N );
 [normI, totalPower0] = getNormalization(PUPIL);% Normalization factors
-lambdaOverD = N/apRad/2; % lam/D in units of samples in the image plane
+lambdaOverD = N/(pupCircDiam/2)/2; % lam/D in units of samples in the image plane
 
 % figure(1)
-% imagesc(xvals/apRad,yvals/apRad,PUPIL);
+% imagesc(xvals/(pupCircDiam/2),yvals/(pupCircDiam/2),PUPIL);
 % axis image; 
 % axis([-1 1 -1 1]);
 % title('Pupil');
@@ -174,6 +241,13 @@ if isrealWF
     wfmsk(10:12, 9:10) = 1;
     % Correct shifted pixels (1 extra at top and one missing at bottom)
     wfmsk(2,13) = 0; wfmsk(19,13) = 1;
+    % Fill in closest pixels (causing simulated mask to be severely undersized)
+    wfmsk(15,17) = 1; wfmsk(17, 16) = 1; wfmsk(4, 15) = 1;
+    
+    %-- Aditional nobs to turn for mask features:
+    % rot: angle [degrees] by which to rotate data to match our pupil
+    % sclfdg: Fudge factor for mask resizing to match simulated pupil to wfmsk
+    % cntfdg: Fudge factor for mask centering to match sim pup to wfmsk
     
     %-- Pre-process WF before loop
     % Mask WF using charlotte's pupil
@@ -185,11 +259,13 @@ if isrealWF
 else
     %*** Synthetic data
     % Create matrix-version of coeffs to simulate changing WFE
-    wfMod = nan(wfSamps, length(nolls));
-    for i = 1:length(nolls)
-        % Create random phase delay
-        phzShift = rand*2*pi;
-        wfMod(:, i) = sin(linspace(0+phzShift, wfModPhzEnd+phzShift, wfSamps))';    % smoothly modulate WFE amplitude
+    wfMod = ones(wfSamps, length(nolls));
+    if isWFPhzMod
+        for i = 1:length(nolls)
+            % Create random phase delay
+            phzShift = rand*2*pi;
+            wfMod(:, i) = sin(linspace(0+phzShift, wfModPhzEnd+phzShift, wfSamps))';    % smoothly modulate WFE amplitude
+        end
     end
     %wfMod = repmat(wfMod, 1, length(coeffs));
     coeffs = repmat(coeffs, wfSamps, 1);
@@ -200,14 +276,19 @@ end
 if isrealWF
     if isPlotSimp
         % Show raw mask
-        figure(100);
+        figure(101);
         imagesc(wfmskRAW);
         axis image;
+        title('Original WF Mask - from PyWFS')
         % Show corrected mask
-        figure(101);
+        figure(102);
         imagesc(wfmsk(:,:,1))
         axis image;
+        title('User-Corrected WF Mask - from PyWFS')
     end
+    
+    % NOTE: Zernikes for real data are calculated during main loop
+    
 else
     % Show synthetic coefficients
     zrnFig = figure(100);
@@ -222,10 +303,81 @@ else
         legs(i) = {num2str(nolls(i))};
     end
     hold off
-
+    title('Zernike Decomposition')
+    xlabel('WF Sample')
+    ylabel('RMS [waves at \lambda_0]')
     legH = legend(legs);
     title(legH, 'Noll Index')
 end    
+
+%% Deal with TT extraction (real data) or synthesis (synthetic data)
+% Resize ttSCL to proper dimensionality for ttres
+ttSCL = repmat(ttSCL', wfSamps, 1);
+if isrealTT
+    %*** Real data
+    
+    %-- Read data 
+    ttres = fitsread([ttPTH, ttRSN]);   % Full residuals file
+    % Extract specific samples
+    ttres = ttres(ttstrt:ttstrt+wfSamps-1,:);
+    % Rescale the WFR to waves rms at lambda0
+    ttres = ttres.*ttSCL;    
+       
+else
+    %*** Synthetic data
+    
+    %-- Create matrix-version of coeffs to simulate changing TT
+    ttMod = ones(wfSamps, length(ttres));
+    if isTTPhzMod 
+        % Modulate phase as requested by user
+        for i = 1:length(ttres)
+            % Create random phase delay
+            phzShift = rand*2*pi;
+            ttMod(:, i) = sin(linspace(0+phzShift, ttModPhzEnd+phzShift, wfSamps))';    % smoothly modulate TT amplitude
+        end
+    end
+    ttres = repmat(ttres, wfSamps, 1);
+    ttres = ttres.*ttMod;             % Apply modulation
+    %-- Convert from mas to [waves RMS]
+    ttres = ttres*1e-3.*ttSCL;        % *1e-3 to go from mas to arcsec for ttSCL
+end
+
+%-- Final formatting 
+% Convert to 3D for adc combination. New dim.: [wfSamps, tip/tilt, wavelength];
+ttres = repmat(ttres, 1, 1, numWavelengths);
+% Scale tilt by wavelength
+ttlamscl = permute(repmat(lambdas/lambda0,wfSamps,1,2),[1 3 2]);
+ttres = ttlamscl.*ttres;
+
+
+%% Display TT residuals (no atmospheric dispersion yet)
+ttFig = figure(104);
+% Set axes colors to black [0 0 0]
+set(ttFig,'defaultAxesColorOrder',[[0 0 0]; [0 0 0]]);
+yyaxis right
+% Plot right axis [waves RMS]
+ttPLT = plot(1:wfSamps, ttres(:,1,1), 'r-o', 1:wfSamps, ttres(:,2,1), 'b-o', 'MarkerSize', 4, 'LineWidth', 2);
+title('Tip Tilt Residuals - Before Atm. Disp.')
+xlabel('WF Sample')
+legend('Tip', 'Tilt');
+ylabel('RMS [waves at \lambda_0]')
+% Save ylimits for rescaling on left side
+ttYlimL = ylim;
+% Add left label [mas]
+yyaxis left
+ylabel('RMS [mas]')
+% Rescale using mean of ttSCL to account for difference in Tip/Tilt PV2RMS
+ylim(ttYlimL*1e3/mean(ttSCL(1,:)))
+
+%% Deal with atmospheric dispersion
+% Resize ttSCL to proper dimensionality for ttres
+ttSCL = repmat(ttSCL, 1, 1, numWavelengths);
+
+% Convert from [mas] to [waves]
+adcres = adcres*1e-3.*ttSCL;
+
+% Add in ADC residuals as additional TT errors directly
+ttres = ttres+adcres;
 
 %% Make vortex mask (once before loop since does not change)
 EPM = generateVortexMask( charge, coords, [offsetX offsetY] );
@@ -249,8 +401,11 @@ axlim2EMap = axlimPSF;      % x-y axis limits
 axYlimEtaP = [0 12];        % y axis limit
 % Eta_s plots
 isaxYlimEtaS = true;       % Flag to mark whether to hardcode y-axis
-axYlimEtaS = [0 1];      % y axis limit (in units of 1e-3)
+axYlimEtaS = [0 2];      % y axis limit (in units of eta_sYSCL)
 eta_sYSCL  = 1e3;           % scaling for y axis
+% realWF Zernike plot
+zrnSCL = 1e2;               % scaling factor for y axis
+axYlimZrn = [-10 10];          % y axis limits (in units of 1e3)
 
 %-- Coloraxes
 % WFR map
@@ -277,11 +432,23 @@ prg = 1;        % Average over region +/-prg pixels wide
 eta_ss = nan(wfSamps, 1);
 eta_ps = nan(wfSamps, 1);
 
+if isrealWF
+    %-- Preallocate realWF zernike coeffs FOR PLOTTING
+        % NOTE: WF reconstruction is still done over 36 zernikes
+    coeffs = nan(wfSamps, length(nolls));
+end
+
+% Determine central band 
+central_band_index = ceil(numWavelengths/2);
+
 for i = 1:wfSamps
 fprintf('wfSamp %03d of %03d\n', i, wfSamps);
     
 %% Define pupil field
-if isrealWF   
+%*** DEAL WITH WAVEFRONT RESIDUALS
+if isrealWF  
+    
+    %-- FORMAT REAL WAVEFRONT FOR SIMULATION
     % Extract frame
     wfTMP = wfres(:,:,i);
     % Up-sample to decrease error sensitivity in centering and rotation
@@ -289,23 +456,26 @@ if isrealWF
     wfTMP = interp2(wfTMP, 5, 'nearest');
     % Recenter and crop (assuming roughly symmetric)
     [rws, cls] = find(wfTMP);  % find min and max row/col indices
+    cntfdg = [0 -10];   % centering fudge factor  [row col] ** must be even
     rw1 = min(rws); rw2 = max(rws);
     cl1 = min(cls); cl2 = max(cls);
-    wfTMP = wfTMP(rw1-1:rw2, cl1-1:cl2);
+    wfTMP = wfTMP(rw1-1+cntfdg(1)/2:rw2+cntfdg(1)/2, cl1-1+cntfdg(2)/2:cl2+cntfdg(2)/2);
     % Rotate to fix orientation
-    wfTMP = imrotate(wfTMP, 30);
+    rot = 27;       % 27 provides decent alignment for furthest segments
+    wfTMP = imrotate(wfTMP, rot);
     % Find inscribed circle size
     [rws, cls] = find(~wfTMP);
     crc = 2*min(sqrt((rws-size(wfTMP,1)/2-1).^2 + (cls-size(wfTMP,2)/2-1).^2));
     % OPTIONAL: show inscribed circle
     %figure; imagesc(wfTMP)
     %viscircles([size(wfTMP,2)/2-1, size(wfTMP,1)/2-1], crc/2);
-    % Resize so that inscribed circle is >~= pupCircDiam
-    fdg = 5;    % fudge factor on pupCircDiam to make sure bigger than crc
-	x = 0:(pupCircDiam+fdg)/crc:(size(wfTMP,2)-1)*(pupCircDiam+fdg)/crc;
-    y = 0:(pupCircDiam+fdg)/crc:(size(wfTMP,1)-1)*(pupCircDiam+fdg)/crc;
-    xi = 0:(size(wfTMP,2)-1)*(pupCircDiam+fdg)/crc;
-    yi = 0:(size(wfTMP,1)-1)*(pupCircDiam+fdg)/crc;
+    %title('Inscribed Circ B4 Resize')
+    % Resize so that simulated pupil closely matches real pupil (wfmsk)
+    sclfdg = -23;    % fudge factor for pupil resizing ** (-)=grow mask; (+)=shrink mask
+	x = 0:(pupCircDiam+sclfdg)/crc:(size(wfTMP,2)-1)*(pupCircDiam+sclfdg)/crc;
+    y = 0:(pupCircDiam+sclfdg)/crc:(size(wfTMP,1)-1)*(pupCircDiam+sclfdg)/crc;
+    xi = 0:(size(wfTMP,2)-1)*(pupCircDiam+sclfdg)/crc;
+    yi = 0:(size(wfTMP,1)-1)*(pupCircDiam+sclfdg)/crc;
     [xt, yt] = meshgrid(x,y); %create vector arrays
     [xit, yit] = meshgrid(xi,yi); %create vector arrays
     wfTMP = interp2(xt,yt,wfTMP,xit,yit);
@@ -322,26 +492,111 @@ if isrealWF
     % Final crop to ensure proper size 
         % Accounts for initial oversize or padding which adds 1 extra row/col
     wfTMP = wfTMP(1:N, 1:N);
-    % Apply pupil!  (Not actually, pupil will be applied at Epup calc
+    % Apply pupil!  (Not actually, pupil will be applied at Epup calc)
     % wfTMP = wfTMP.*PUPIL;
     % OPTIONAL: show final pupil with WF
-    %figure; imagesc(wfTMP.*PUPIL)
+    %figure; imagesc(wfTMP.*PUPIL); title('Final Raw WF - Simulated Pupil')
     
-    % Convert from waves to radians
-    phz = wfTMP*2*pi;
+    %-- DECOMPOSE WAVEFRONT INTO ZERNIKES;
+    recCof = nan(recNMds,1);
+    if israwWF
+        %-- Reconstruction not requested; use raw WF
+        % Set loop to only decompose requested modes (nolls)
+        jvls = nolls;
+    else
+        %-- Use reconstruction for WF instead of raw values
+        % Preallocate reconstructed WF matrix
+        recWF = zeros(N);
+        % Set loop to decompose on all recNMds
+        jvls = 1:recNMds;
+    end
+    for j = jvls
+        % Generate zernike (on keck pupil) with 1 wave RMS error
+        tmpzrn = generateZernike_fromList(j, 1, PUPIL, pupCircDiam/2, coords);
+        % Rescale zernike from radians to waves
+        tmpzrn = tmpzrn/(2*pi);
+        % Left-divide to get coefficient
+        recCof(j) = tmpzrn(logical(PUPIL))\wfTMP(logical(PUPIL));
+        if ~israwWF
+            recWF = recWF + tmpzrn*recCof(j);
+        end
+    end
+    coeffs(i,:) = recCof(nolls);
+    
+    %-- DISPLAY REQUESTED ZERNIKE COEFFICIENTS (nolls)
+    if i == 1
+        % Show requested coefficients
+        zrnFig = figure(100);
+        legs = cell(length(nolls),1);
+        for j = 1:length(nolls)
+            cofPlt(j) = plot(coeffs(:,j)*zrnSCL, '-o', 'MarkerSize', 4, 'LineWidth', 2);
+            if j == 1
+                hold on
+            end
+            legs(j) = {num2str(nolls(j))};
+        end
+        hold off
+        xlim([0 wfSamps]);
+        ylim(axYlimZrn);
+        title('Zernike Decomposition (Approx in Pupil)', 'FontSize', fontszTi);
+        xlabel('WF Sample')
+        ylabel('RMS [% waves at \lambda_0]')% \times 10^{-2}]')
+        legH = legend(legs);
+        title(legH, 'Noll Index')
+    else
+        for j = 1:length(nolls)
+            set(cofPlt(j), 'YData', coeffs(:,j)*zrnSCL);
+        end
+    end
+    
+    %-- SET WF FOR USE AND CONVERT FROM WAVES TO RADIANS
+    if israwWF
+        wfphz = wfTMP*2*pi;
+    else
+        % Renormalize one last time to ensure RMS values match.
+        rmsWF = sqrt(mean(wfTMP(logical(PUPIL)).^2));
+        recWF = rmsWF*recWF/sqrt(mean(recWF(logical(PUPIL)).^2));
+        wfphz = recWF*2*pi;
+    end
+    
+    %-- DISPLAY PUPIL PROJECTIONS
+    if isPlotSimp && (i == 1)
+        crcPup = makeCircularPupil(pupCircDiam/2, N);
+        wfPLT = wfTMP; wfPLT(wfPLT==0) = nan;
+        figure(103); 
+        imagesc(xvals/(pupCircDiam/2), yvals/(pupCircDiam/2), wfPLT+0.05*PUPIL+0.1*crcPup); 
+        axis image
+        axis([-1.2 1.2 -1.2 1.2])
+        title('Pupil Projections')
+    end
+    
 else
-    phz = generateZernike_fromList( nolls, coeffs(i,:), PUPIL, pupCircDiam/2, coords); 
+    %-- Apply synthetic wavefronts
+    wfphz = generateZernike_fromList( nolls, coeffs(i,:), PUPIL, pupCircDiam/2, coords); 
 end
 
 if isPlotSimp
     figure(2);
 end
 for ch = 1:numWavelengths
-    Epup(:,:,ch) = exp(1i*phz*lambda0/lambdas(ch)).*PUPIL;
+    %*** DEAL WITH TT AND ADC RESIDUALS (in loop to do by wavelength)
+    % Check if there are any non-zero values in ttres in case user has disabled 
+        % TT/ADC residuals via setting all to 0
+    if find(ttres(:,:,ch))
+        %-- Non-zero value found thus apply TT/ADC residuals
+        % Build TT/ADC wavefronts
+        ttphz = generateZernike_fromList([2 3], ttres(i,1:2,ch), PUPIL, pupCircDiam/2, coords);
+    else
+        ttphz = zeros(N, N);
+    end
+    
+    %*** COMBINE ALL PHASE ERRORS 
+    pupphz = ttphz + lambda0/lambdas(ch)*wfphz;
+    Epup(:,:,ch) = exp(1i*pupphz).*PUPIL;
     
     if isPlotSimp
         subplot(1,numWavelengths,ch);
-        imagesc(xvals/apRad,yvals/apRad,angle(Epup(:,:,ch)));
+        imagesc(xvals/(pupCircDiam/2),yvals/(pupCircDiam/2),angle(Epup(:,:,ch)));
         axis image; 
         axis([-1 1 -1 1]);
         title(['Phase at ',num2str(lambdas(ch)*1e9),'nm']);
@@ -350,6 +605,38 @@ for ch = 1:numWavelengths
     end
 drawnow;   
 end
+
+%% Check PSF at each wavelength
+% Calculate PSF at each wavelength and display. If titls are set to 1lam/D, PSF
+% at each wavelength should also be 1lam/D
+% myfft2 = @(x) fftshift(fft2(fftshift(x)));
+%     
+% iPSF = zeros(coords.N,coords.N,length(lambdas)); 
+% 
+% ch = 1;% channel index
+% for lam = lambdas 
+%     PSF = myfft2(Epup(:,:,ch)); % PSF (complex field)
+%     iPSF_lam = abs(PSF).^2/normI;
+%     lam_frac = lam/lambda0;
+%     iPSF(:,:,ch) = (1/lam_frac)^2*interp2(coords.X,coords.Y,iPSF_lam,coords.X/lam_frac,coords.Y/lam_frac,'linear',0);
+%     ch = ch + 1;
+% end
+% 
+% figure(9);
+% for ch = 1:numWavelengths
+%     subplot(1,numWavelengths,ch);
+%     if islogcoup
+%         imagesc(xvals/(lambdaOverD*lambdas(ch)/lambda0),yvals/(lambdaOverD*lambdas(ch)/lambda0),log10(iPSF(:,:,ch)));
+%     else
+%         imagesc(xvals/(lambdaOverD*lambdas(ch)/lambda0),yvals/(lambdaOverD*lambdas(ch)/lambda0),iPSF(:,:,ch));
+%     end
+%     axis image;
+%     axis([-2 2 -2 2]);
+%     title(['\eta at ',num2str(lambdas(ch)*1e9),'nm']);
+%     colorbar;
+%     if islogcoup; caxis([-4 0]); end
+%     colormap(gray(256));
+% end
 
 %% Get PSF without vortex mask
 
@@ -368,11 +655,9 @@ if isPlotSimp
 end 
 
 %% Plot vortex mask
-central_band_index = ceil(numWavelengths/2);
-
 if isPlotSimp
     figure(4)
-    imagesc(xvals/apRad,yvals/apRad,angle(EPM(:,:,central_band_index).*Epup(:,:,central_band_index)));
+    imagesc(xvals/(pupCircDiam/2),yvals/(pupCircDiam/2),angle(EPM(:,:,central_band_index).*Epup(:,:,central_band_index)));
     axis image; 
     axis([-1 1 -1 1]);
     title('Pupil phase at \lambda_0');
@@ -437,7 +722,7 @@ set(gifFig, 'Units','normalized', 'OuterPosition', [0.05 0.05 0.9 0.9], 'Color',
 
 %-- Plot instantaneous WFE/R (at central lambda)
 % Convert WFE from rads to nm
-wfr = phz/2/pi*lambda0*1e9.*PUPIL;      %.*PUPIL Optional to show with pupil
+wfr = wfphz/2/pi*lambda0*1e9.*PUPIL;      %.*PUPIL Optional to show with pupil
 % Set out-of-pupil values to NaN for plotting
 wfr(wfr==0) = nan;
 % Plot
@@ -583,7 +868,7 @@ else
 
 %-- Update WFE/R 
 % Convert WFE from rads to nm
-wfr = phz/2/pi*lambda0*1e9.*PUPIL;      %.*PUPIL Optional to show with pupil
+wfr = wfphz/2/pi*lambda0*1e9.*PUPIL;      %.*PUPIL Optional to show with pupil
 % Set out-of-pupil values to NaN for plotting
 wfr(wfr==0) = nan;
 set(datWFR, 'CData', wfr);
@@ -635,9 +920,39 @@ end
 %% TO-DO LIST!
 %{
 1) Do zernike decomp of real WF
+    *** DONE
 2) Find good way to show real decomp in the main Figure or in adjacent figure
 3) Consider smoothing/re-interpolating the WF data so it's less course
+    *** DONE - reconstructing WF using zernike decomp
     a) This could be an optional "filtering" feature
+4) Find a way to fit more of our simulated pupil within the real pupil
+    Options:
+    *** DONE
+    a) Rotate WF less (<30) so that orientation is more favorable
+    b) Don't use wfmsk at all for sizing, only for centering
+5) Display mods to original pupil as different color in figure 101
+6) Add slide of raw DM voltages without mask provided by charlotte
+    *** DONE
+    - Say that this is where we get our WF data from
+7) Prevent simplePlot figures from being recast each time
+    - Modify so that they are only generated once and then only the data gets
+        updated on each iteration in the same way that the SPIE fig is handled.
+8) Consider scaling zernike coefficients by rmsWF/rmsRec ratio
+    - This may be a valid way of rescaling the coefficients to get more accurate
+        reported values.
+9) Add ADC errors
+    - separate section from TT
+    - Net TTcoeffs matrix should be 3D [sample, dir(T/T), wavelength]
+10) T/T residuals
+11) Calc planet coupling at star location, not center of frame
+    - w/ TT and ADC residuals, the star is no longer at the center of the frame
+    - Thus, we should calc. the lam/D offset due to TT and ADC and then center
+    the planet averaging around this point.
+12) Modify generateCouplingmap_polychromatic.m to improve efficiency
+    - 25% of runtime is currently spent in this function
+    - Specifically, most of the time is spent generating the bessel SMF model
+    - This only needs to be generated once, not each time. As such, modify code
+        to generate bessel model once and then re-use it each time.
 %}
 
 
