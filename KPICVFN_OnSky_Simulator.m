@@ -105,11 +105,11 @@ numWavelengths = 5;% number of discrete wavelengths
 lambdas = getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths (meters)
 
 % Define charge of the vortex mask at each wavelength
-charge = 0*ones(1,numWavelengths); % achromatic
+charge = 2*ones(1,numWavelengths); % achromatic
 %charge = 2*lambda0./lambdas; % simple scalar model
 
 %--- Define wavefront residuals at the central wavelength
-isrealWF = false;      % Flag to mark if real or synthetic WFs should be used
+isrealWF = true;      % Flag to mark if real or synthetic WFs should be used
 if isrealWF
     % Real WF data parameters
     wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
@@ -124,7 +124,7 @@ if isrealWF
     % Zernikes to plot in figure
     nolls = [2, 3, 5, 6];
     % Flag to choose if WF reconstruction or raw WF should be used
-    israwWF = true;
+    israwWF = false;
     % Number of zernike modes used in reconstruction
     recNMds = 36;
     %%%% NOTE:::: DEAL WITH MANUAL CORRECTIONS IN WF SECTION BELOW!!!
@@ -139,7 +139,7 @@ end
 
 %-- Define Tip/Tilt residuals  (ADC PARAMS ARE DEFINED SEPARATELY)
 % NOTE::: To disable TT residuals, use isrealTT = false and set ttres = [0 0];
-isrealTT = false;      % Flag to mark if real or synthetic TTs should be used
+isrealTT = true;      % Flag to mark if real or synthetic TTs should be used
 % Scaling factor for data (arcsec to waves RMS)
 keckD = 10.949;                 % Real-world keck pupil diameter [m] - 10.949 = circumscribed
 ttSCL = keckD/206265/lambda0;       % (D in [m])/(arcsec/rad)/(lambda in [m])  = arcsec2wavesPV
@@ -173,7 +173,7 @@ end
 % NOTE::: To have disable ADC residuals, set adcres = to all 0's
 %adcres = 0*ones(2,numWavelengths);         % Disable ADC residuals
 % NOTE::: To define constant ADC residuals, provide 2D matrix here
-adcres = 1*[-37.3 -39.4 41.4 43.5 45.6;...         % Tip residuals at each wavelength
+adcres = 0*[-37.3 -39.4 41.4 43.5 45.6;...         % Tip residuals at each wavelength
             0 0 0 0 0];          % Tilt residuals at each wavelenght
 % Make into 3D matrix with dimensionaly: [wfSamps, tip/tilt, wavelength]
 adcres = permute(repmat(adcres, 1, 1, wfSamps),[3 1 2]);
@@ -189,7 +189,7 @@ offsetY = 0*apRad;%0.0524*apRad;
 islogcoup = true;
 
 % Flag to plot intermediate figures (before SPIE figure)
-isPlotSimp = true;
+isPlotSimp = false;
 
 %-- Saving parameters
 % Flag to save data
@@ -382,6 +382,48 @@ ttres = ttres+adcres;
 %% Make vortex mask (once before loop since does not change)
 EPM = generateVortexMask( charge, coords, [offsetX offsetY] );
 
+%% Generate fibermode at each lambda (once before loop since does not change)
+    % Generating fib modes once improves runtime by 25% for N=2048 and wfSamps=10
+    
+% Parameters for Thorlabs SM600
+    % link: https://www.thorlabs.com/NewGroupPage9_PF.cfm?ObjectGroup_ID=949
+fiber_props.core_rad = 11e-6/2;% Core radius [um]
+fiber_props.n_core = 1.4606;% core index (interpolated from linear fit to 3 points)
+fiber_props.n_clad = 1.4571;% cladding index (interpolated from linear fit to 3 points)
+Fnum = 5; % focal ratio of the beam at the fiber
+fiber_props.type = 'bessel';
+
+% Iterate through wavelengths generating modes
+fibmodes = nan(N, N, numWavelengths);
+for ch = 1:numWavelengths
+    fibmodes(:,:,ch) = generateSMFmode(fiber_props, lambdas(ch), Fnum, lambdaOverD, coords);
+end
+
+%% Generate unit zernike modes (once before loop since does not change)
+    % Generating unit modes once improves runtime by 25% on top of fiber mode
+    % improvement for N=2048 and wfSamps=10
+
+% Define zernikes on which to decompose
+if israwWF
+    %-- Reconstruction not requested; use raw WF
+    % Set loop to only decompose requested modes (nolls)
+    jvls = nolls;
+else
+    %-- Use reconstruction for WF instead of raw values
+    % Set loop to decompose on all recNMds
+    jvls = 1:recNMds;
+end
+
+% Preallocate zernike matrix
+unitzrn = nan(N, N, length(jvls));
+% Create basis
+for j = jvls
+    % Generate zernike (on keck pupil) with 1 wave RMS error
+    unitzrn(:,:,j) = generateZernike_fromList(j, 1, PUPIL, pupCircDiam/2, coords);
+    % Rescale zernike from radians to waves
+    unitzrn = unitzrn/(2*pi);
+end
+
 %% Set SPIE Figure parameters
 % Use subtightplot for control over plot spacing
 subplot = @(m,n,p) subtightplot (m, n, p, [0.12 0.06], [0.1 0.05], [0.05 0.05]);
@@ -499,22 +541,13 @@ if isrealWF
     
     %-- DECOMPOSE WAVEFRONT INTO ZERNIKES;
     recCof = nan(recNMds,1);
-    if israwWF
-        %-- Reconstruction not requested; use raw WF
-        % Set loop to only decompose requested modes (nolls)
-        jvls = nolls;
-    else
-        %-- Use reconstruction for WF instead of raw values
+    if ~israwWF
         % Preallocate reconstructed WF matrix
         recWF = zeros(N);
-        % Set loop to decompose on all recNMds
-        jvls = 1:recNMds;
     end
     for j = jvls
-        % Generate zernike (on keck pupil) with 1 wave RMS error
-        tmpzrn = generateZernike_fromList(j, 1, PUPIL, pupCircDiam/2, coords);
-        % Rescale zernike from radians to waves
-        tmpzrn = tmpzrn/(2*pi);
+        % Extract current mode
+        tmpzrn = unitzrn(:,:,j);
         % Left-divide to get coefficient
         recCof(j) = tmpzrn(logical(PUPIL))\wfTMP(logical(PUPIL));
         if ~israwWF
@@ -640,10 +673,10 @@ end
 
 %% Get PSF without vortex mask
 
-% Get broadband PSF
-iPSF_BB = getPSF(Epup,lambda0,lambdas,normI,coords);
-
 if isPlotSimp
+    % Get broadband PSF; used only for this plot so not necessary
+    iPSF_BB = getPSF(Epup,lambda0,lambdas,normI,coords);
+
     figure(3)
     imagesc(xvals/lambdaOverD,yvals/lambdaOverD,iPSF_BB);
     axis image; 
@@ -682,16 +715,8 @@ if isPlotSimp
 end
 
 %% Generate coupling maps for each wavelength
-
-% Parameters for Thorlabs SM600
-    % link: https://www.thorlabs.com/NewGroupPage9_PF.cfm?ObjectGroup_ID=949
-fiber_props.core_rad = 11e-6/2;% Core radius [um]
-fiber_props.n_core = 1.4606;% core index (interpolated from linear fit to 3 points)
-fiber_props.n_clad = 1.4571;% cladding index (interpolated from linear fit to 3 points)
-Fnum = 5; % focal ratio of the beam at the fiber
-fiber_props.type = 'bessel';
-
-eta_maps = generateCouplingMap_polychromatic(Epup.*EPM, fiber_props, lambda0, Fnum, lambdas, totalPower0, lambdaOverD, 3*lambdaOverD, coords);
+% Use pre-made fibermodes to improve runtime
+eta_maps = generateCouplingMap_polychromatic(Epup.*EPM, fiber_props, lambda0, Fnum, lambdas, totalPower0, lambdaOverD, 3*lambdaOverD, coords, fibmodes);
 
 if isPlotSimp
     figure(6);
@@ -941,14 +966,17 @@ end
     - This may be a valid way of rescaling the coefficients to get more accurate
         reported values.
 9) Add ADC errors
+    *** DONE
     - separate section from TT
     - Net TTcoeffs matrix should be 3D [sample, dir(T/T), wavelength]
 10) T/T residuals
+    *** DONE
 11) Calc planet coupling at star location, not center of frame
     - w/ TT and ADC residuals, the star is no longer at the center of the frame
     - Thus, we should calc. the lam/D offset due to TT and ADC and then center
     the planet averaging around this point.
 12) Modify generateCouplingmap_polychromatic.m to improve efficiency
+    *** DONE
     - 25% of runtime is currently spent in this function
     - Specifically, most of the time is spent generating the bessel SMF model
     - This only needs to be generated once, not each time. As such, modify code
