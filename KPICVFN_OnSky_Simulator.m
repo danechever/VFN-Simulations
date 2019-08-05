@@ -192,11 +192,16 @@ islogcoup = true;
 isPlotSimp = false;
 
 %-- Saving parameters
-% Flag to save data
-isSaveGif = false;
+% Flag to save gif
+isSaveGif = true;
+% Flag to save fits
+isSaveFit = true;
 % Save folder
-svfld = 'C:\Users\danie\Desktop\';
-svnm  = 'RealWF_noTT_Samp100-120_5Lam_2.gif';
+svfld = 'C:\Users\danie\Desktop\RealWF_noTT_noADC_Samp20-1020_5Lam\';
+% Save name for gif
+svnmGif = 'SPIEFig.gif';
+% Save name for fits (prefix only, suffix added in code)
+svnmFit = 'Dat';
 
 %% Generate the coordinate system
 
@@ -421,7 +426,7 @@ for j = jvls
     % Generate zernike (on keck pupil) with 1 wave RMS error
     unitzrn(:,:,j) = generateZernike_fromList(j, 1, PUPIL, pupCircDiam/2, coords);
     % Rescale zernike from radians to waves
-    unitzrn = unitzrn/(2*pi);
+    unitzrn(:,:,j) = unitzrn(:,:,j)/(2*pi);
 end
 
 %% Set SPIE Figure parameters
@@ -765,6 +770,9 @@ wfrCBAR.Label.FontWeight = fontblAx;
 wfrCBAR.Label.FontSize = fontszAx;
 set(axWFR, 'Colormap', parula(256))
 caxis(caxlimWFR)
+if isSaveFit
+    fitswrite(wfr, [svfld sprintf('wfr%06d.fits',i)]);
+end
 
 %-- Plot instantaneous Donut PSF (polychromatic)
 axPSF = subplot(2,3,2);
@@ -782,6 +790,9 @@ psfCBAR.Label.FontSize = fontszAx;
 %caxis([-3 0])
 set(axPSF, 'Colormap', gray(256))
 caxis(caxlimPSF)
+if isSaveFit
+    fitswrite(iPSFv_BB, [svfld sprintf('psfBB%06d.fits',i)]);
+end
 
 %-- Plot eta_s vs. time [eta_s first since it's needed for eta_p and eta map]
 % Get eta_s as min in center of all eta_maps averaged together
@@ -855,6 +866,9 @@ EMapCBAR.Label.FontWeight = fontblAx;
 EMapCBAR.Label.FontSize = fontszAx;
 set(axEMap, 'Colormap', gray(256))
 caxis(caxlimEMap)
+if isSaveFit
+    fitswrite(eta_maps, [svfld sprintf('etaMaps%06d.fits',i)]);
+end
 
 %-- Plot eta_p and eta_s vs. wavelength
 % Eta_p vs wavelength (average w/ centering based on eta_sInd)
@@ -886,7 +900,7 @@ if isSaveGif
     im = frame2im(frame); 
     [imind,cm] = rgb2ind(im,256); 
     % Write to the GIF File 
-    imwrite(imind,cm,[svfld svnm],'gif', 'Loopcount',inf);
+    imwrite(imind,cm,[svfld svnmGif],'gif', 'Loopcount',inf);
 end
 else 
     %% Update figure
@@ -897,9 +911,15 @@ wfr = wfphz/2/pi*lambda0*1e9.*PUPIL;      %.*PUPIL Optional to show with pupil
 % Set out-of-pupil values to NaN for plotting
 wfr(wfr==0) = nan;
 set(datWFR, 'CData', wfr);
+if isSaveFit
+    fitswrite(wfr, [svfld sprintf('wfr%06d.fits',i)]);
+end
 
 %-- Update Donut PSF
 set(datPSF, 'CData', iPSFv_BB);
+if isSaveFit
+    fitswrite(iPSFv_BB, [svfld sprintf('psfBB%06d.fits',i)]);
+end
 
 %-- Update eta_s
     % Note, keep fiber at same location to not "correct" for T/T
@@ -921,6 +941,9 @@ set(datPeak, 'YData', eta_ps);
 
 %-- Update eta map
 set(datEMap, 'CData', eta_maps(:,:,central_band_index));
+if isSaveFit
+    fitswrite(eta_maps, [svfld sprintf('etaMaps%06d.fits',i)]);
+end
 
 %-- Update eta_p and eta_s vs. wavelength
 set(datCoupSLin, 'YData', eta_sL);
@@ -933,7 +956,7 @@ if isSaveGif
     im = frame2im(frame); 
     [imind,cm] = rgb2ind(im,256); 
     % Write to the GIF File 
-    imwrite(imind,cm,[svfld svnm],'gif','WriteMode','append'); 
+    imwrite(imind,cm,[svfld svnmGif],'gif','WriteMode','append'); 
 end
 %pause(1)
 
