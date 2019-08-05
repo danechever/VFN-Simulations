@@ -109,7 +109,9 @@ charge = 2*ones(1,numWavelengths); % achromatic
 %charge = 2*lambda0./lambdas; % simple scalar model
 
 %--- Define wavefront residuals at the central wavelength
-isrealWF = true;      % Flag to mark if real or synthetic WFs should be used
+isrealWF = false;      % Flag to mark if real or synthetic WFs should be used
+% Number of zernike modes used in reconstruction/analysis
+recNMds = 36;
 if isrealWF
     % Real WF data parameters
     wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
@@ -125,8 +127,6 @@ if isrealWF
     nolls = [2, 3, 5, 6];
     % Flag to choose if WF reconstruction or raw WF should be used
     israwWF = false;
-    % Number of zernike modes used in reconstruction
-    recNMds = 36;
     %%%% NOTE:::: DEAL WITH MANUAL CORRECTIONS IN WF SECTION BELOW!!!
 else
     % Synthetic wavefront parameters
@@ -356,13 +356,17 @@ ttres = ttlamscl.*ttres;
 
 
 %% Display TT residuals (no atmospheric dispersion yet)
+
+% Determine central band 
+central_band_index = ceil(numWavelengths/2);
+
 ttFig = figure(104);
 % Set axes colors to black [0 0 0]
 set(ttFig,'defaultAxesColorOrder',[[0 0 0]; [0 0 0]]);
 yyaxis right
 % Plot right axis [waves RMS]
-ttPLT = plot(1:wfSamps, ttres(:,1,1), 'r-o', 1:wfSamps, ttres(:,2,1), 'b-o', 'MarkerSize', 4, 'LineWidth', 2);
-title('Tip Tilt Residuals - Before Atm. Disp.')
+ttPLT = plot(1:wfSamps, ttres(:,1,central_band_index), 'r-o', 1:wfSamps, ttres(:,2,central_band_index), 'b-o', 'MarkerSize', 4, 'LineWidth', 2);
+title('Tip Tilt Residuals @lambda0 - Before Atm. Disp.')
 xlabel('WF Sample')
 legend('Tip', 'Tilt');
 ylabel('RMS [waves at \lambda_0]')
@@ -409,7 +413,7 @@ end
     % improvement for N=2048 and wfSamps=10
 
 % Define zernikes on which to decompose
-if israwWF
+if (isrealWF && israwWF)
     %-- Reconstruction not requested; use raw WF
     % Set loop to only decompose requested modes (nolls)
     jvls = nolls;
@@ -485,9 +489,6 @@ if isrealWF
     coeffs = nan(wfSamps, length(nolls));
 end
 
-% Determine central band 
-central_band_index = ceil(numWavelengths/2);
-
 for i = 1:wfSamps
 fprintf('wfSamp %03d of %03d\n', i, wfSamps);
     
@@ -546,7 +547,7 @@ if isrealWF
     
     %-- DECOMPOSE WAVEFRONT INTO ZERNIKES;
     recCof = nan(recNMds,1);
-    if ~israwWF
+    if ~(isrealWF && israwWF)
         % Preallocate reconstructed WF matrix
         recWF = zeros(N);
     end
@@ -555,7 +556,7 @@ if isrealWF
         tmpzrn = unitzrn(:,:,j);
         % Left-divide to get coefficient
         recCof(j) = tmpzrn(logical(PUPIL))\wfTMP(logical(PUPIL));
-        if ~israwWF
+        if ~(isrealWF && israwWF)
             recWF = recWF + tmpzrn*recCof(j);
         end
     end
@@ -588,7 +589,7 @@ if isrealWF
     end
     
     %-- SET WF FOR USE AND CONVERT FROM WAVES TO RADIANS
-    if israwWF
+    if (isrealWF && israwWF)
         wfphz = wfTMP*2*pi;
     else
         % Renormalize one last time to ensure RMS values match.
@@ -648,6 +649,9 @@ end
 % Calculate PSF at each wavelength and display. If titls are set to 1lam/D, PSF
 % at each wavelength should also be 1lam/D
 % myfft2 = @(x) fftshift(fft2(fftshift(x)));
+% 
+% % Flag to re-interpolate so that scaling is at lambda0
+% isRsclLam = false;
 %     
 % iPSF = zeros(coords.N,coords.N,length(lambdas)); 
 % 
@@ -655,8 +659,12 @@ end
 % for lam = lambdas 
 %     PSF = myfft2(Epup(:,:,ch)); % PSF (complex field)
 %     iPSF_lam = abs(PSF).^2/normI;
-%     lam_frac = lam/lambda0;
-%     iPSF(:,:,ch) = (1/lam_frac)^2*interp2(coords.X,coords.Y,iPSF_lam,coords.X/lam_frac,coords.Y/lam_frac,'linear',0);
+%     if isRsclLam
+%         lam_frac = lam/lambda0;
+%         iPSF(:,:,ch) = (1/lam_frac)^2*interp2(coords.X,coords.Y,iPSF_lam,coords.X/lam_frac,coords.Y/lam_frac,'linear',0);
+%     else
+%         iPSF(:,:,ch) = iPSF_lam;
+%     end
 %     ch = ch + 1;
 % end
 % 
@@ -1004,6 +1012,15 @@ end
     - Specifically, most of the time is spent generating the bessel SMF model
     - This only needs to be generated once, not each time. As such, modify code
         to generate bessel model once and then re-use it each time.
+13) Add feature to select if any plots should be generated (including SPIE)
+    - To run on the HPC and as fast as possible, we won't want to plot anything,
+        we just want to save the fits files.
+    - As such, we'll need to calculate the stuff that we would need to the SPIE
+        figure but only save the fits files.
+14) Only save center region of all data in fits files
+    - We are currently saving the full NxN matrix in the fits files.
+    - We only need the central ~5lam/D region.
+15) Check why reconstructed and raw WF provide such different null depths
 %}
 
 
