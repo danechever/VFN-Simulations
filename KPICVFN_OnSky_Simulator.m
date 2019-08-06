@@ -88,7 +88,7 @@ Notes:___
     - ADC residuals are provided at each sample and wavelength.
 %}
 
-clear; %close all; 
+clear; close all; 
 addpath('VFNlib');
 addpath(genpath('C:\Users\danie\Documents\MATLAB\VFN-Lab\AnalysisCode\'))
 
@@ -96,7 +96,7 @@ addpath(genpath('C:\Users\danie\Documents\MATLAB\VFN-Lab\AnalysisCode\'))
 
 % Define smapling info
 N = 2^11; % Size of computational grid (NxN samples) 
-apRad = 128; % Aperture radius in samples 
+apRad = 64; % Aperture radius in samples 
 
 % Define wavelength info
 lambda0 = 2200e-9; %central wavelength
@@ -109,7 +109,7 @@ charge = 2*ones(1,numWavelengths); % achromatic
 %charge = 2*lambda0./lambdas; % simple scalar model
 
 %--- Define wavefront residuals at the central wavelength
-isrealWF = false;      % Flag to mark if real or synthetic WFs should be used
+isrealWF = true;      % Flag to mark if real or synthetic WFs should be used
 % Number of zernike modes used in reconstruction/analysis
 recNMds = 36;
 if isrealWF
@@ -119,8 +119,8 @@ if isrealWF
     wfMKN = 'DMPupil.fits';             % Filename for pupil mask on residuals
     % NOTE::: Raw data assumed to be in [Volts]
     % Define sample start and end values
-    wfstrt = 100;
-    wfSamps = 20;
+    wfstrt = 30;
+    wfSamps = 5;
     % Scaling factor for data (nm/V)
     wfSCL = 600;     
     % Zernikes to plot in figure
@@ -139,15 +139,10 @@ end
 
 %-- Define Tip/Tilt residuals  (ADC PARAMS ARE DEFINED SEPARATELY)
 % NOTE::: To disable TT residuals, use isrealTT = false and set ttres = [0 0];
-isrealTT = true;      % Flag to mark if real or synthetic TTs should be used
-% Scaling factor for data (arcsec to waves RMS)
+isrealTT = false;      % Flag to mark if real or synthetic TTs should be used
+% Scaling factor for data (arcsec to waves PV at lambda0)
 keckD = 10.949;                 % Real-world keck pupil diameter [m] - 10.949 = circumscribed
 ttSCL = keckD/206265/lambda0;       % (D in [m])/(arcsec/rad)/(lambda in [m])  = arcsec2wavesPV
-% Vectorize to include PV2RMS conversion for both pupil axes separately
-    % PV2RMS values determined empirically using generateZernike_fromlist then
-    % confirmed by setting ttres = 41.4mas and confirming 1lam/D PSF shift since
-    % 41.4mas = 1lam/D @2.2um
-ttSCL = ttSCL*ones(2,1)./[3.819513, 4.212690]'; 
 if isrealTT
     % Real TT data parameters
     ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
@@ -164,17 +159,17 @@ if isrealTT
     % no ttSamps since should sample exactly as many TTs as WFs  
 else
     % Synthetic TT parameters
-    ttres = 0*[0, 41.4];    % Peak TT error in [mas] at central wavelength
-    isTTPhzMod = false;     % Flag to chose if phase should be modulated
+    ttres = 0*[41.4452, 0];    % Peak TT error in [mas] at central wavelength
+    isTTPhzMod = true;     % Flag to chose if phase should be modulated
     ttModPhzEnd = 2*pi;     % Temporal modulation phase end (without delay) 
 end
 
 %-- Define ADC residuals:   in [mas]
-% NOTE::: To have disable ADC residuals, set adcres = to all 0's
+% NOTE::: To disable ADC residuals, set adcres = to all 0's
 %adcres = 0*ones(2,numWavelengths);         % Disable ADC residuals
 % NOTE::: To define constant ADC residuals, provide 2D matrix here
-adcres = 0*[-37.3 -39.4 41.4 43.5 45.6;...         % Tip residuals at each wavelength
-            0 0 0 0 0];          % Tilt residuals at each wavelenght
+adcres = 0*[0 0 0 0 0;...         % Tip residuals at each wavelength in [mas]
+              -10 -5 0 5 10];          % Tilt residuals at each wavelength in [mas]
 % Make into 3D matrix with dimensionaly: [wfSamps, tip/tilt, wavelength]
 adcres = permute(repmat(adcres, 1, 1, wfSamps),[3 1 2]);
 % NOTE::: To provide time-varyin ADC:
@@ -186,16 +181,16 @@ offsetX = 0*apRad;%0.0952*apRad;
 offsetY = 0*apRad;%0.0524*apRad; 
 
 % Flag to plot coupling maps in log scale
-islogcoup = true;
+islogcoup = false;
 
 % Flag to plot intermediate figures (before SPIE figure)
 isPlotSimp = false;
 
 %-- Saving parameters
 % Flag to save gif
-isSaveGif = true;
+isSaveGif = false;
 % Flag to save fits
-isSaveFit = true;
+isSaveFit = false;
 % Save folder
 svfld = 'C:\Users\danie\Desktop\RealWF_noTT_noADC_Samp20-1020_5Lam\';
 % Save name for gif
@@ -316,8 +311,6 @@ else
 end    
 
 %% Deal with TT extraction (real data) or synthesis (synthetic data)
-% Resize ttSCL to proper dimensionality for ttres
-ttSCL = repmat(ttSCL', wfSamps, 1);
 if isrealTT
     %*** Real data
     
@@ -325,8 +318,8 @@ if isrealTT
     ttres = fitsread([ttPTH, ttRSN]);   % Full residuals file
     % Extract specific samples
     ttres = ttres(ttstrt:ttstrt+wfSamps-1,:);
-    % Rescale the WFR to waves rms at lambda0
-    ttres = ttres.*ttSCL;    
+    % Rescale the TTR to waves PV at lambda0
+    ttres = ttres*ttSCL;    
        
 else
     %*** Synthetic data
@@ -343,30 +336,18 @@ else
     end
     ttres = repmat(ttres, wfSamps, 1);
     ttres = ttres.*ttMod;             % Apply modulation
-    %-- Convert from mas to [waves RMS]
-    ttres = ttres*1e-3.*ttSCL;        % *1e-3 to go from mas to arcsec for ttSCL
+    %-- Convert from mas to [waves PV at lambda0]
+    ttres = ttres*1e-3*ttSCL;        % *1e-3 to go from mas to arcsec for ttSCL
 end
 
-%-- Final formatting 
-% Convert to 3D for adc combination. New dim.: [wfSamps, tip/tilt, wavelength];
-ttres = repmat(ttres, 1, 1, numWavelengths);
-% Scale tilt by wavelength
-ttlamscl = permute(repmat(lambdas/lambda0,wfSamps,1,2),[1 3 2]);
-ttres = ttlamscl.*ttres;
-
-
 %% Display TT residuals (no atmospheric dispersion yet)
-
-% Determine central band 
-central_band_index = ceil(numWavelengths/2);
-
 ttFig = figure(104);
 % Set axes colors to black [0 0 0]
 set(ttFig,'defaultAxesColorOrder',[[0 0 0]; [0 0 0]]);
 yyaxis right
 % Plot right axis [waves RMS]
-ttPLT = plot(1:wfSamps, ttres(:,1,central_band_index), 'r-o', 1:wfSamps, ttres(:,2,central_band_index), 'b-o', 'MarkerSize', 4, 'LineWidth', 2);
-title('Tip Tilt Residuals @lambda0 - Before Atm. Disp.')
+ttPLT = plot(1:wfSamps, ttres(:,1), 'r-o', 1:wfSamps, ttres(:,2), 'b-o', 'MarkerSize', 4, 'LineWidth', 2);
+title('Tip Tilt Residuals - Before Atm. Disp.')
 xlabel('WF Sample')
 legend('Tip', 'Tilt');
 ylabel('RMS [waves at \lambda_0]')
@@ -376,14 +357,14 @@ ttYlimL = ylim;
 yyaxis left
 ylabel('RMS [mas]')
 % Rescale using mean of ttSCL to account for difference in Tip/Tilt PV2RMS
-ylim(ttYlimL*1e3/mean(ttSCL(1,:)))
+ylim(ttYlimL*1e3/ttSCL);
 
 %% Deal with atmospheric dispersion
-% Resize ttSCL to proper dimensionality for ttres
-ttSCL = repmat(ttSCL, 1, 1, numWavelengths);
+% Convert from [mas] to [waves at lambda0]
+adcres = adcres*1e-3*ttSCL;
 
-% Convert from [mas] to [waves]
-adcres = adcres*1e-3.*ttSCL;
+% Convert ttres to 3D to include wavelengths. New dim.: [wfSamps, tip/tilt, wavelength];
+ttres = repmat(ttres, 1, 1, numWavelengths);
 
 % Add in ADC residuals as additional TT errors directly
 ttres = ttres+adcres;
@@ -428,9 +409,9 @@ unitzrn = nan(N, N, length(jvls));
 % Create basis
 for j = jvls
     % Generate zernike (on keck pupil) with 1 wave RMS error
-    unitzrn(:,:,j) = generateZernike_fromList(j, 1, PUPIL, pupCircDiam/2, coords);
+    tmpzrn = generateZernike_fromList(j, 1, PUPIL, pupCircDiam/2, coords);
     % Rescale zernike from radians to waves
-    unitzrn(:,:,j) = unitzrn(:,:,j)/(2*pi);
+    unitzrn(:,:,j) = tmpzrn/(2*pi);
 end
 
 %% Set SPIE Figure parameters
@@ -452,7 +433,7 @@ axlim2EMap = axlimPSF;      % x-y axis limits
 axYlimEtaP = [0 12];        % y axis limit
 % Eta_s plots
 isaxYlimEtaS = true;       % Flag to mark whether to hardcode y-axis
-axYlimEtaS = [0 2];      % y axis limit (in units of eta_sYSCL)
+axYlimEtaS = [0 10];      % y axis limit (in units of eta_sYSCL)
 eta_sYSCL  = 1e3;           % scaling for y axis
 % realWF Zernike plot
 zrnSCL = 1e2;               % scaling factor for y axis
@@ -488,6 +469,9 @@ if isrealWF
         % NOTE: WF reconstruction is still done over 36 zernikes
     coeffs = nan(wfSamps, length(nolls));
 end
+
+% Determine central band 
+central_band_index = ceil(numWavelengths/2);
 
 for i = 1:wfSamps
 fprintf('wfSamp %03d of %03d\n', i, wfSamps);
@@ -594,7 +578,8 @@ if isrealWF
     else
         % Renormalize one last time to ensure RMS values match.
         rmsWF = sqrt(mean(wfTMP(logical(PUPIL)).^2));
-        recWF = rmsWF*recWF/sqrt(mean(recWF(logical(PUPIL)).^2));
+        recWF = recWF*rmsWF/sqrt(mean(recWF(logical(PUPIL)).^2));
+        %recWF = recWF*(recWF(logical(PUPIL))\wfTMP(logical(PUPIL)));
         wfphz = recWF*2*pi;
     end
     
@@ -617,6 +602,7 @@ end
 if isPlotSimp
     figure(2);
 end
+
 for ch = 1:numWavelengths
     %*** DEAL WITH TT AND ADC RESIDUALS (in loop to do by wavelength)
     % Check if there are any non-zero values in ttres in case user has disabled 
@@ -624,13 +610,14 @@ for ch = 1:numWavelengths
     if find(ttres(:,:,ch))
         %-- Non-zero value found thus apply TT/ADC residuals
         % Build TT/ADC wavefronts
-        ttphz = generateZernike_fromList([2 3], ttres(i,1:2,ch), PUPIL, pupCircDiam/2, coords);
+        ttphz = 2*pi*ttres(i,1,ch)*lambdaOverD*coords.X/N;  % Create X tilt
+        ttphz = ttphz + 2*pi*ttres(i,2,ch)*lambdaOverD*coords.Y/N;  % Add Y tilt
     else
         ttphz = zeros(N, N);
     end
     
     %*** COMBINE ALL PHASE ERRORS 
-    pupphz = ttphz + lambda0/lambdas(ch)*wfphz;
+    pupphz = (ttphz + wfphz)*lambda0/lambdas(ch);   % also rescale to lambda
     Epup(:,:,ch) = exp(1i*pupphz).*PUPIL;
     
     if isPlotSimp
@@ -655,6 +642,8 @@ end
 %     
 % iPSF = zeros(coords.N,coords.N,length(lambdas)); 
 % 
+% figure(9);
+% 
 % ch = 1;% channel index
 % for lam = lambdas 
 %     PSF = myfft2(Epup(:,:,ch)); % PSF (complex field)
@@ -665,24 +654,34 @@ end
 %     else
 %         iPSF(:,:,ch) = iPSF_lam;
 %     end
-%     ch = ch + 1;
-% end
-% 
-% figure(9);
-% for ch = 1:numWavelengths
+%     
+%     % Get the position of the PSF peak (for checking titlts)
+%     [maxVal,maxInd] = max(abs(PSF(:)));
+%     [maxRow,maxCol] = ind2sub(size(PSF),maxInd);
+%     psf_pos_lamOverD_x = coords.X(maxRow,maxCol)/lambdaOverD;
+%     psf_pos_lamOverD_y = coords.Y(maxRow,maxCol)/lambdaOverD;
+%     disp(['At ',num2str(lam*1e9),' nm, peak is at (',num2str(psf_pos_lamOverD_x),', ',num2str(psf_pos_lamOverD_y),') lam/D']);
+%     
 %     subplot(1,numWavelengths,ch);
 %     if islogcoup
-%         imagesc(xvals/(lambdaOverD*lambdas(ch)/lambda0),yvals/(lambdaOverD*lambdas(ch)/lambda0),log10(iPSF(:,:,ch)));
+%         imagesc(xvals/lambdaOverD,yvals/lambdaOverD,log10(iPSF(:,:,ch)));
 %     else
-%         imagesc(xvals/(lambdaOverD*lambdas(ch)/lambda0),yvals/(lambdaOverD*lambdas(ch)/lambda0),iPSF(:,:,ch));
+%         imagesc(xvals/lambdaOverD,yvals/lambdaOverD,iPSF(:,:,ch));
 %     end
+%     hold on
 %     axis image;
 %     axis([-2 2 -2 2]);
 %     title(['\eta at ',num2str(lambdas(ch)*1e9),'nm']);
 %     colorbar;
 %     if islogcoup; caxis([-4 0]); end
-%     colormap(gray(256));
+%     colormap(parula(256));
+%     
+%     plot(psf_pos_lamOverD_x,psf_pos_lamOverD_y,'o');
+%     hold off; 
+%     
+%     ch = ch + 1;
 % end
+
 
 %% Get PSF without vortex mask
 
@@ -755,6 +754,7 @@ end
 
 if i == 1
     %% Generate figure (first sample only)
+    
 gifFig = figure(7);
 set(gifFig, 'Units','normalized', 'OuterPosition', [0.05 0.05 0.9 0.9], 'Color', 'w');
 
@@ -776,8 +776,8 @@ wfrCBAR = colorbar;
 wfrCBAR.Label.String = 'Residuals [nm]';
 wfrCBAR.Label.FontWeight = fontblAx;
 wfrCBAR.Label.FontSize = fontszAx;
-set(axWFR, 'Colormap', parula(256))
-caxis(caxlimWFR)
+set(axWFR, 'Colormap', parula(256));
+caxis(caxlimWFR);
 if isSaveFit
     fitswrite(wfr, [svfld sprintf('wfr%06d.fits',i)]);
 end
@@ -788,7 +788,7 @@ datPSF = imagesc(xvals/lambdaOverD,yvals/lambdaOverD,iPSFv_BB);
 axis image; 
 set(axPSF, 'TickDir', 'out');
 axis(axlimPSF);
-title('Broadband PSF w/ vortex', 'FontSize', fontszTi);
+title('Broadband PSF w/ Vortex', 'FontSize', fontszTi);
 xlabel('\lambda/D', 'FontWeight', fontblAx, 'FontSize', fontszAx)
 ylabel('\lambda/D', 'FontWeight', fontblAx, 'FontSize', fontszAx)
 psfCBAR = colorbar; 
@@ -886,17 +886,11 @@ axCoup = subplot(2,3,6);
 title('Coupling Fractions Across Band', 'FontSize', fontszTi)
 yyaxis left
 datCoupSLin = plot(lambdas*1e9, eta_sL, 'b-o', 'MarkerFaceColor', 'b');
-%hold on
-%datCoupSSca = scatter(lambdas*1e9, eta_sLs(1,:));
-%hold off
 ylim(axYlimEtaS)
 ylabel(['\eta_s [\times 10^{-' num2str(log10(eta_sYSCL)) '}]'], 'FontWeight', fontblAx, 'FontSize', fontszAx)
 xlabel('Wavelength [nm]', 'FontWeight', fontblAx, 'FontSize', fontszAx)
 yyaxis right
 datCoupPLin = plot(lambdas*1e9, eta_pL, 'r-o', 'MarkerFaceColor', 'r');
-%hold on
-%datCoupPSca = scatter(lambdas*1e9, eta_pLs(1,:));
-%hold off
 ylim(axYlimEtaP)
 ylabel('\eta_p [%]', 'FontWeight', fontblAx, 'FontSize', fontszAx)
 
@@ -931,7 +925,6 @@ end
 
 %-- Update eta_s
     % Note, keep fiber at same location to not "correct" for T/T
-%eta_sLs(i,:) = squeeze(eta_mapss(i, eta_sInd(1), eta_sInd(2),:));
 eta_sL = eta_maps(eta_sInd(1), eta_sInd(2), :)*eta_sYSCL;
 eta_ss(i) = mean(eta_sL);
 set(datNull, 'YData', eta_ss);
