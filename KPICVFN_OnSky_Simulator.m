@@ -118,9 +118,10 @@ if isrealWF
     wfRSN = 'residualWF.fits';          % Filename for residuals
     wfMKN = 'DMPupil.fits';             % Filename for pupil mask on residuals
     % NOTE::: Raw data assumed to be in [Volts]
-    % Define sample start and end values
-    wfstrt = 30;
-    wfSamps = 5;
+    % Define sample start, end, and step values
+    wfstrt = 100;
+    wfSamps = 10;
+    wfStepSz = 100;
     % Scaling factor for data (nm/V)
     wfSCL = 600;     
     % Zernikes to plot in figure
@@ -139,7 +140,7 @@ end
 
 %-- Define Tip/Tilt residuals  (ADC PARAMS ARE DEFINED SEPARATELY)
 % NOTE::: To disable TT residuals, use isrealTT = false and set ttres = [0 0];
-isrealTT = false;      % Flag to mark if real or synthetic TTs should be used
+isrealTT = true;      % Flag to mark if real or synthetic TTs should be used
 % Scaling factor for data (arcsec to waves PV at lambda0)
 keckD = 10.949;                 % Real-world keck pupil diameter [m] - 10.949 = circumscribed
 ttSCL = keckD/206265/lambda0;       % (D in [m])/(arcsec/rad)/(lambda in [m])  = arcsec2wavesPV
@@ -148,15 +149,22 @@ if isrealTT
     ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
     ttRSN = 'residualTT.fits';          % Filename for residuals
     % NOTE::: raw data assumed to be in [arcsec]
-    % Define sample start and end values
+    % Define sample start values
     if exist('wfstrt', 'var')
         % By default, use wfstrt when defined
         ttstrt = wfstrt;
     else
         % NOTE::: If wfstrt is not defined, user must define a ttsrt manually
         ttstrt = 100;
+    end 
+    if exist('wfStepSz', 'var')
+        % By default, use wfStepSz when defined
+        ttStepSz = wfStepSz;
+    else
+        % NOTE::: If wfStepSz is not defined, user must define a ttStepSz manually
+        ttStepSz = 1;
     end
-    % no ttSamps since should sample exactly as many TTs as WFs  
+    % NOTE::: no ttSamps since should sample exactly as many TTs as WFs     
 else
     % Synthetic TT parameters
     ttres = 0*[41.4452, 0];    % Peak TT error in [mas] at central wavelength
@@ -165,16 +173,27 @@ else
 end
 
 %-- Define ADC residuals:   in [mas]
-% NOTE::: To disable ADC residuals, set adcres = to all 0's
-%adcres = 0*ones(2,numWavelengths);         % Disable ADC residuals
-% NOTE::: To define constant ADC residuals, provide 2D matrix here
-adcres = 0*[0 0 0 0 0;...         % Tip residuals at each wavelength in [mas]
-              -10 -5 0 5 10];          % Tilt residuals at each wavelength in [mas]
-% Make into 3D matrix with dimensionaly: [wfSamps, tip/tilt, wavelength]
-adcres = permute(repmat(adcres, 1, 1, wfSamps),[3 1 2]);
-% NOTE::: To provide time-varyin ADC:
-% Optionally, provide 3D matrix directly with time-varying ADC residuals
-    % Dimensionality still needs to match [wfSamps, tip/tilt, wavelength]
+% Flag to mark if real adc residuals should be used
+isrealADC = true;
+if isrealADC
+    %-- Real ADC params
+    adcPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\ADC_residuals\';
+    adcRSN = 'corrected_dispersion_K_z30.csv';
+    % NOTE::: files should be in csv, col1=wavelengths, col2=lambdas in [mas]. 
+    %   Values are interpolated from this data. 
+else
+    %-- User-provided manual ADC values 
+    % NOTE::: To disable ADC residuals, set adcres = to all 0's
+    %adcres = 0*ones(2,numWavelengths);         % Disable ADC residuals
+    % NOTE::: To define constant ADC residuals, provide 2D matrix here
+    adcres = 0*[0 0 0 0 0;...         % Tip residuals at each wavelength in [mas]
+             -10 -5 0 5 10];          % Tilt residuals at each wavelength in [mas]
+    % Make into 3D matrix with dimensionaly: [wfSamps, tip/tilt, wavelength]
+    adcres = permute(repmat(adcres, 1, 1, wfSamps),[3 1 2]);
+    % NOTE::: To provide time-varyin ADC:
+    % Optionally, provide 3D matrix directly with time-varying ADC residuals
+        % Dimensionality still needs to match [wfSamps, tip/tilt, wavelength]
+end
 
 % Give offsets for the vortex mask
 offsetX = 0*apRad;%0.0952*apRad;
@@ -186,17 +205,23 @@ islogcoup = false;
 % Flag to plot intermediate figures (before SPIE figure)
 isPlotSimp = false;
 
+% Flag to display SPIE figure or run in the background (true = display, false = hide)
+isSPIEDisp = true;
+
+% Flag to display zernike figure
+isPlotResCof = false;
+
 %-- Saving parameters
 % Flag to save gif
-isSaveGif = false;
+isSaveGif = true;
 % Flag to save fits
-isSaveFit = false;
+isSaveFit = true;
 % Save folder
-svfld = 'C:\Users\danie\Desktop\RealWF_noTT_noADC_Samp20-1020_5Lam\';
+svfld = 'C:\Users\danie\Desktop\SaveTests\';
 % Save name for gif
 svnmGif = 'SPIEFig.gif';
-% Save name for fits (prefix only, suffix added in code)
-svnmFit = 'Dat';
+% Crop region for fits saving in [lambdaOverD]
+fitcrop = 5;    
 
 %% Generate the coordinate system
 
@@ -228,7 +253,7 @@ if isrealWF
     wfres = fitsread([wfPTH, wfRSN]);   % Full residuals file
     wfmsk = fitsread([wfPTH, wfMKN]);   % Mask file
     % Extract specific samples
-    wfres = wfres(:,:,wfstrt:wfstrt+wfSamps-1);
+    wfres = wfres(:,:,wfstrt:wfStepSz:wfstrt+wfStepSz*(wfSamps-1));
     % Rescale the WFR to waves at lambda0
     wfres = wfres*wfSCL*1e-9/lambda0;    %x1e-9 to go to [m] since lambda0 is in [m]
     % Copy raw mask for plotting later
@@ -290,24 +315,26 @@ if isrealWF
     % NOTE: Zernikes for real data are calculated during main loop
     
 else
-    % Show synthetic coefficients
-    zrnFig = figure(100);
-    mrks = {'-o', '-s', '-d', '-^', '-*', '-x', '-p'};
-    legs = cell(length(nolls),1);
-    % plot(1:wfSamps, coeffs, mrks)
-    for i = 1:length(nolls)
-        plot(coeffs(:,i), char(mrks(i)), 'MarkerSize', 4, 'LineWidth', 2);
-        if i == 1
-            hold on
+    if isPlotResCof
+        % Show synthetic coefficients
+        zrnFig = figure(100);
+        mrks = {'-o', '-s', '-d', '-^', '-*', '-x', '-p'};
+        legs = cell(length(nolls),1);
+        % plot(1:wfSamps, coeffs, mrks)
+        for i = 1:length(nolls)
+            plot(coeffs(:,i), char(mrks(i)), 'MarkerSize', 4, 'LineWidth', 2);
+            if i == 1
+                hold on
+            end
+            legs(i) = {num2str(nolls(i))};
         end
-        legs(i) = {num2str(nolls(i))};
+        hold off
+        title('Zernike Decomposition')
+        xlabel('WF Sample')
+        ylabel('RMS [waves at \lambda_0]')
+        legH = legend(legs);
+        title(legH, 'Noll Index')
     end
-    hold off
-    title('Zernike Decomposition')
-    xlabel('WF Sample')
-    ylabel('RMS [waves at \lambda_0]')
-    legH = legend(legs);
-    title(legH, 'Noll Index')
 end    
 
 %% Deal with TT extraction (real data) or synthesis (synthetic data)
@@ -317,7 +344,7 @@ if isrealTT
     %-- Read data 
     ttres = fitsread([ttPTH, ttRSN]);   % Full residuals file
     % Extract specific samples
-    ttres = ttres(ttstrt:ttstrt+wfSamps-1,:);
+    ttres = ttres(ttstrt:ttStepSz:ttstrt+ttStepSz*(wfSamps-1),:);
     % Rescale the TTR to waves PV at lambda0
     ttres = ttres*ttSCL;    
        
@@ -341,25 +368,39 @@ else
 end
 
 %% Display TT residuals (no atmospheric dispersion yet)
-ttFig = figure(104);
-% Set axes colors to black [0 0 0]
-set(ttFig,'defaultAxesColorOrder',[[0 0 0]; [0 0 0]]);
-yyaxis right
-% Plot right axis [waves RMS]
-ttPLT = plot(1:wfSamps, ttres(:,1), 'r-o', 1:wfSamps, ttres(:,2), 'b-o', 'MarkerSize', 4, 'LineWidth', 2);
-title('Tip Tilt Residuals - Before Atm. Disp.')
-xlabel('WF Sample')
-legend('Tip', 'Tilt');
-ylabel('RMS [waves at \lambda_0]')
-% Save ylimits for rescaling on left side
-ttYlimL = ylim;
-% Add left label [mas]
-yyaxis left
-ylabel('RMS [mas]')
-% Rescale using mean of ttSCL to account for difference in Tip/Tilt PV2RMS
-ylim(ttYlimL*1e3/ttSCL);
+if isPlotResCof
+    ttFig = figure(104);
+    % Set axes colors to black [0 0 0]
+    set(ttFig,'defaultAxesColorOrder',[[0 0 0]; [0 0 0]]);
+    yyaxis right
+    % Plot right axis [waves RMS]
+    ttPLT = plot(1:wfSamps, ttres(:,1), 'r-o', 1:wfSamps, ttres(:,2), 'b-o', 'MarkerSize', 4, 'LineWidth', 2);
+    title('Tip Tilt Residuals - Before Atm. Disp.')
+    xlabel('WF Sample')
+    legend('Tip', 'Tilt');
+    ylabel('RMS [waves at \lambda_0]')
+    % Save ylimits for rescaling on left side
+    ttYlimL = ylim;
+    % Add left label [mas]
+    yyaxis left
+    ylabel('RMS [mas]')
+    % Rescale using mean of ttSCL to account for difference in Tip/Tilt PV2RMS
+    ylim(ttYlimL*1e3/ttSCL);
+end
 
 %% Deal with atmospheric dispersion
+if isrealADC
+    %-- Load real data
+    % Read file
+    adcraw = csvread([adcPTH adcRSN], 1, 0);    % ignore first row with names
+    % Interpolate dispersion for given wavelengths
+    adcres = interp1(adcraw(:,1),adcraw(:,2),lambdas*1e6, 'linear', 'extrap');
+    % Pad to inlcude 0's for non-dispersion axis
+    adcres = padarray(adcres, 1, 0, 'pre');
+    % Make into 3D matrix with dimensionaly: [wfSamps, tip/tilt, wavelength]
+    adcres = permute(repmat(adcres, 1, 1, wfSamps),[3 1 2]);
+end
+
 % Convert from [mas] to [waves at lambda0]
 adcres = adcres*1e-3*ttSCL;
 
@@ -546,29 +587,31 @@ if isrealWF
     end
     coeffs(i,:) = recCof(nolls);
     
-    %-- DISPLAY REQUESTED ZERNIKE COEFFICIENTS (nolls)
-    if i == 1
-        % Show requested coefficients
-        zrnFig = figure(100);
-        legs = cell(length(nolls),1);
-        for j = 1:length(nolls)
-            cofPlt(j) = plot(coeffs(:,j)*zrnSCL, '-o', 'MarkerSize', 4, 'LineWidth', 2);
-            if j == 1
-                hold on
+    if isPlotResCof
+        %-- DISPLAY REQUESTED ZERNIKE COEFFICIENTS (nolls)
+        if i == 1
+            % Show requested coefficients
+            zrnFig = figure(100);
+            legs = cell(length(nolls),1);
+            for j = 1:length(nolls)
+                cofPlt(j) = plot(coeffs(:,j)*zrnSCL, '-o', 'MarkerSize', 4, 'LineWidth', 2);
+                if j == 1
+                    hold on
+                end
+                legs(j) = {num2str(nolls(j))};
             end
-            legs(j) = {num2str(nolls(j))};
-        end
-        hold off
-        xlim([0 wfSamps]);
-        ylim(axYlimZrn);
-        title('Zernike Decomposition (Approx in Pupil)', 'FontSize', fontszTi);
-        xlabel('WF Sample')
-        ylabel('RMS [% waves at \lambda_0]')% \times 10^{-2}]')
-        legH = legend(legs);
-        title(legH, 'Noll Index')
-    else
-        for j = 1:length(nolls)
-            set(cofPlt(j), 'YData', coeffs(:,j)*zrnSCL);
+            hold off
+            xlim([0 wfSamps]);
+            ylim(axYlimZrn);
+            title('Zernike Decomposition (Approx in Pupil)', 'FontSize', fontszTi);
+            xlabel('WF Sample')
+            ylabel('RMS [% waves at \lambda_0]')% \times 10^{-2}]')
+            legH = legend(legs);
+            title(legH, 'Noll Index')
+        else
+            for j = 1:length(nolls)
+                set(cofPlt(j), 'YData', coeffs(:,j)*zrnSCL);
+            end
         end
     end
     
@@ -754,9 +797,15 @@ end
 
 if i == 1
     %% Generate figure (first sample only)
+
+if isSPIEDisp
+    gifFigVis = 'on';
+else
+    gifFigVis = 'off';
+end
     
 gifFig = figure(7);
-set(gifFig, 'Units','normalized', 'OuterPosition', [0.05 0.05 0.9 0.9], 'Color', 'w');
+set(gifFig, 'Units','normalized', 'OuterPosition', [0.05 0.05 0.9 0.9], 'Color', 'w', 'Visible', gifFigVis);
 
 %-- Plot instantaneous WFE/R (at central lambda)
 % Convert WFE from rads to nm
@@ -779,7 +828,8 @@ wfrCBAR.Label.FontSize = fontszAx;
 set(axWFR, 'Colormap', parula(256));
 caxis(caxlimWFR);
 if isSaveFit
-    fitswrite(wfr, [svfld sprintf('wfr%06d.fits',i)]);
+    wfrCrp = [N/2-round(pupCircDiam/2)-20:N/2+round(pupCircDiam/2)+20];
+    fitswrite(wfr(wfrCrp, wfrCrp), [svfld sprintf('wfr%06d.fits',i)]);
 end
 
 %-- Plot instantaneous Donut PSF (polychromatic)
@@ -799,7 +849,8 @@ psfCBAR.Label.FontSize = fontszAx;
 set(axPSF, 'Colormap', gray(256))
 caxis(caxlimPSF)
 if isSaveFit
-    fitswrite(iPSFv_BB, [svfld sprintf('psfBB%06d.fits',i)]);
+    psfCrp = [N/2-round(lambdaOverD*5):N/2+round(lambdaOverD*5)];
+    fitswrite(iPSFv_BB(psfCrp, psfCrp), [svfld sprintf('psfBB%06d.fits',i)]);
 end
 
 %-- Plot eta_s vs. time [eta_s first since it's needed for eta_p and eta map]
@@ -827,7 +878,7 @@ end
 ylim(axYlimEtaS)
 xlim([0 wfSamps])
 box on
-ylabel('\eta_s [\times 10^{-3}]', 'FontWeight', fontblAx, 'FontSize', fontszAx)
+ylabel(['\eta_s [\times 10^{-' num2str(log10(eta_sYSCL)) '}]'], 'FontWeight', fontblAx, 'FontSize', fontszAx)
 xlabel('WF Sample', 'FontWeight', fontblAx, 'FontSize', fontszAx)
 title('Broadband Star Coupling', 'FontSize', fontszTi)
 
@@ -875,7 +926,8 @@ EMapCBAR.Label.FontSize = fontszAx;
 set(axEMap, 'Colormap', gray(256))
 caxis(caxlimEMap)
 if isSaveFit
-    fitswrite(eta_maps, [svfld sprintf('etaMaps%06d.fits',i)]);
+    etaMapCrp = [N/2-round(lambdaOverD*5):N/2+round(lambdaOverD*5)];
+    fitswrite(eta_maps(etaMapCrp,etaMapCrp,:), [svfld sprintf('etaMaps%06d.fits',i)]);
 end
 
 %-- Plot eta_p and eta_s vs. wavelength
@@ -914,13 +966,13 @@ wfr = wfphz/2/pi*lambda0*1e9.*PUPIL;      %.*PUPIL Optional to show with pupil
 wfr(wfr==0) = nan;
 set(datWFR, 'CData', wfr);
 if isSaveFit
-    fitswrite(wfr, [svfld sprintf('wfr%06d.fits',i)]);
+    fitswrite(wfr(wfrCrp,wfrCrp), [svfld sprintf('wfr%06d.fits',i)]);
 end
 
 %-- Update Donut PSF
 set(datPSF, 'CData', iPSFv_BB);
 if isSaveFit
-    fitswrite(iPSFv_BB, [svfld sprintf('psfBB%06d.fits',i)]);
+    fitswrite(iPSFv_BB(psfCrp,psfCrp), [svfld sprintf('psfBB%06d.fits',i)]);
 end
 
 %-- Update eta_s
@@ -943,7 +995,7 @@ set(datPeak, 'YData', eta_ps);
 %-- Update eta map
 set(datEMap, 'CData', eta_maps(:,:,central_band_index));
 if isSaveFit
-    fitswrite(eta_maps, [svfld sprintf('etaMaps%06d.fits',i)]);
+    fitswrite(eta_maps(etaMapCrp,etaMapCrp,:), [svfld sprintf('etaMaps%06d.fits',i)]);
 end
 
 %-- Update eta_p and eta_s vs. wavelength
