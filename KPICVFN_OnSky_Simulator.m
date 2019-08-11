@@ -217,9 +217,15 @@ isSaveGif = true;
 % Flag to save fits
 isSaveFit = true;
 % Save folder
-svfld = 'C:\Users\danie\Desktop\SaveTests\';
+svfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\Charge1_WFCon_TTon_ADCon_QuickRun\';
+if (isSaveGif || isSaveFit)
+    % Create foler if it doesn't already exist
+    mkdir(svfld)
+end
 % Save name for gif
 svnmGif = 'SPIEFig.gif';
+% Delay time for gif (time between frames in [s])
+gifDelay = 0.3;
 % Crop region for fits saving in [lambdaOverD]
 fitcrop = 5;    
 
@@ -419,9 +425,9 @@ EPM = generateVortexMask( charge, coords, [offsetX offsetY] );
 % Parameters for Thorlabs SM600
     % link: https://www.thorlabs.com/NewGroupPage9_PF.cfm?ObjectGroup_ID=949
 fiber_props.core_rad = 11e-6/2;% Core radius [um]
-fiber_props.n_core = 1.4606;% core index (interpolated from linear fit to 3 points)
-fiber_props.n_clad = 1.4571;% cladding index (interpolated from linear fit to 3 points)
-Fnum = 5; % focal ratio of the beam at the fiber
+fiber_props.n_core = 1.4436;% core index 
+fiber_props.n_clad = 1.4381;% cladding index 
+Fnum = getMFD(fiber_props,lambda0)/(lambda0*1.4); % focal ratio of the beam at the fiber
 fiber_props.type = 'bessel';
 
 % Iterate through wavelengths generating modes
@@ -485,10 +491,11 @@ axYlimZrn = [-10 10];          % y axis limits (in units of 1e3)
 if isrealWF
     % Real WF thus get actual value directly from full matrix
         % slightly inaccurate since different mask and interp but close enough
-    caxlimWFR = [min(wfres*lambda0*1e9, [], 'all') max(wfres*lambda0*1e9, [], 'all')];
+    %caxlimWFR = [min(wfres(:)*lambda0*1e9) max(wfres(:)*lambda0*1e9)];
+    caxlimWFR = [-400 400];
 else
     % Approximate PV based on the RMS values from the coeffs
-    caxlimWFR = [3*min(coeffs*lambda0*1e9,[],'all') 3*max(coeffs*lambda0*1e9, [], 'all')];
+    caxlimWFR = [3*min(coeffs(:)*lambda0*1e9) 3*max(coeffs(:)*lambda0*1e9)];
 end
 % PSF
     % Determined empirically from several samples
@@ -825,7 +832,8 @@ wfrCBAR = colorbar;
 wfrCBAR.Label.String = 'Residuals [nm]';
 wfrCBAR.Label.FontWeight = fontblAx;
 wfrCBAR.Label.FontSize = fontszAx;
-set(axWFR, 'Colormap', parula(256));
+%set(axWFR, 'Colormap', parula(256));
+colormap(axWFR, parula(256));
 caxis(caxlimWFR);
 if isSaveFit
     wfrCrp = [N/2-round(pupCircDiam/2)-20:N/2+round(pupCircDiam/2)+20];
@@ -846,7 +854,8 @@ psfCBAR.Label.String = 'Normalized Irradiance';
 psfCBAR.Label.FontWeight = fontblAx;
 psfCBAR.Label.FontSize = fontszAx;
 %caxis([-3 0])
-set(axPSF, 'Colormap', gray(256))
+%set(axPSF, 'Colormap', gray(256))
+colormap(axPSF, gray(256));
 caxis(caxlimPSF)
 if isSaveFit
     psfCrp = [N/2-round(lambdaOverD*5):N/2+round(lambdaOverD*5)];
@@ -861,7 +870,7 @@ crp = 68;   %1/2 of crop window for min analysis
 [s1, s2, ~] = size(eta_maps);
 eta_cent = eta_maps(ceil(s1/2-s1/crp):ceil(s1/2+s1/crp),ceil(s2/2-s2/crp):ceil(s2/2+s2/crp),:);
 eta_cent = mean(eta_cent,3);
-eta_s = min(eta_cent,[],[1 2]);    % Get min of average in central region as broadband null
+eta_s = min(eta_cent(:));    % Get min of average in central region as broadband null
 % Get indices for null location
 [eta_sInd(1), eta_sInd(2)] = find(eta_s==eta_cent);
 eta_sInd = eta_sInd + round(N/2-N/crp-1);   % Account for cropping from before
@@ -871,15 +880,28 @@ eta_sL = squeeze(eta_maps(eta_sInd(1), eta_sInd(2), :))*eta_sYSCL;
 eta_ss(1) = mean(eta_sL);   
 % Plot
 axNull = subplot(2,3,5);
-datNull = scatter(1:wfSamps, eta_ss, markerSz, 'b', 'MarkerFaceColor', 'flat');
+if isrealWF
+    % Rescale the x-axis to time (assuming 1/kHz sampling)
+    xaxscl = wfStepSz/1000;
+else
+    % Do not rescale
+    xaxscl = 1;
+end
+datNull = scatter((1:wfSamps)*xaxscl, eta_ss, markerSz, 'b', 'MarkerFaceColor', 'flat');
 if ~isaxYlimEtaS
     axYlimEtaS(2) = 1.2*max(eta_sL(:));
 end
 ylim(axYlimEtaS)
-xlim([0 wfSamps])
+xlim([0 wfSamps*xaxscl])
 box on
 ylabel(['\eta_s [\times 10^{-' num2str(log10(eta_sYSCL)) '}]'], 'FontWeight', fontblAx, 'FontSize', fontszAx)
-xlabel('WF Sample', 'FontWeight', fontblAx, 'FontSize', fontszAx)
+if isrealWF
+    % Set x-axis label to seconds
+    xlab = 'Time [s]';
+else
+    xlab = 'WF Sample';
+end
+xlabel(xlab, 'FontWeight', fontblAx, 'FontSize', fontszAx)
 title('Broadband Star Coupling', 'FontSize', fontszTi)
 
 %-- Plot eta_p vs. time [eta_p before eta map since needed for circle plot]
@@ -893,15 +915,15 @@ for ii = 1:numWavelengths
 end
 % Average along wavelength dimension to find best average planet coupling
 [~, eta_pInd] = max(mean(eta_pAvg, 1));
-eta_ps(1) = mean(eta_pAvg(:,eta_pInd-prg:eta_pInd+prg), [1 2])*100;  % convert to [%]
+eta_ps(1) = mean(mean(eta_pAvg(:,eta_pInd-prg:eta_pInd+prg), 2))*100;  % convert to [%]
 % Plot
 axPeak = subplot(2,3,4);
-datPeak = scatter(1:wfSamps, eta_ps, markerSz, 'r', 'MarkerFaceColor', 'flat');
+datPeak = scatter((1:wfSamps)*xaxscl, eta_ps, markerSz, 'r', 'MarkerFaceColor', 'flat');
 ylim(axYlimEtaP)
-xlim([0 wfSamps])
+xlim([0 wfSamps*xaxscl])
 box on
 ylabel('\eta_p [%]', 'FontWeight', fontblAx, 'FontSize', fontszAx)
-xlabel('WF Sample', 'FontWeight', fontblAx, 'FontSize', fontszAx)
+xlabel(xlab, 'FontWeight', fontblAx, 'FontSize', fontszAx)
 title([sprintf('Broadband Planet Coupling\nfrom %3.1f', qvec(eta_pInd-prg)/lambdaOverD) '\lambda/D to ' num2str(qvec(eta_pInd+prg)/lambdaOverD,'%3.1f') '\lambda/D'], 'FontSize', fontszTi)
 
 %-- Plot instantaneous eta map (at central lambda)
@@ -923,7 +945,8 @@ EMapCBAR = colorbar;
 EMapCBAR.Label.String = '\eta';
 EMapCBAR.Label.FontWeight = fontblAx;
 EMapCBAR.Label.FontSize = fontszAx;
-set(axEMap, 'Colormap', gray(256))
+%set(axEMap, 'Colormap', gray(256))
+colormap(axEMap, gray(256));
 caxis(caxlimEMap)
 if isSaveFit
     etaMapCrp = [N/2-round(lambdaOverD*5):N/2+round(lambdaOverD*5)];
@@ -954,7 +977,8 @@ if isSaveGif
     im = frame2im(frame); 
     [imind,cm] = rgb2ind(im,256); 
     % Write to the GIF File 
-    imwrite(imind,cm,[svfld svnmGif],'gif', 'Loopcount',inf);
+    imwrite(imind,cm,[svfld svnmGif],'gif', 'Loopcount',inf, 'DelayTime', gifDelay);
+    export_fig([svfld 'SPIEFig_' num2str(i,'%04d') '.png'],'-r150', '-painters', '-nocrop', gifFig)
 end
 else 
     %% Update figure
@@ -1009,7 +1033,8 @@ if isSaveGif
     im = frame2im(frame); 
     [imind,cm] = rgb2ind(im,256); 
     % Write to the GIF File 
-    imwrite(imind,cm,[svfld svnmGif],'gif','WriteMode','append'); 
+    imwrite(imind,cm,[svfld svnmGif],'gif','WriteMode','append','DelayTime', gifDelay); 
+    export_fig([svfld 'SPIEFig_' num2str(i,'%04d') '.png'],'-r150', '-painters', '-nocrop', gifFig)
 end
 %pause(1)
 
