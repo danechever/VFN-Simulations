@@ -115,6 +115,7 @@ recNMds = 36;
 if isrealWF
     % Real WF data parameters
     wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
+    %wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190617\';
     wfRSN = 'residualWF.fits';          % Filename for residuals
     wfMKN = 'DMPupil.fits';             % Filename for pupil mask on residuals
     % NOTE::: Raw data assumed to be in [Volts]
@@ -146,7 +147,8 @@ keckD = 10.949;                 % Real-world keck pupil diameter [m] - 10.949 = 
 ttSCL = keckD/206265/lambda0;       % (D in [m])/(arcsec/rad)/(lambda in [m])  = arcsec2wavesPV
 if isrealTT
     % Real TT data parameters
-    ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
+    %ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
+    ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190617\';
     ttRSN = 'residualTT.fits';          % Filename for residuals
     % NOTE::: raw data assumed to be in [arcsec]
     % Define sample start values
