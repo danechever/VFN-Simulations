@@ -95,7 +95,7 @@ Notes:___
 %}
 
 clear; close all; 
-addpath('VFNlib');
+addpath('C:\Users\danie\Documents\MATLAB\VFN-Simulations\VFNlib');
 addpath(genpath('C:\Users\danie\Documents\MATLAB\VFN-Lab\AnalysisCode\'))
 
 %% Input parameters 
@@ -113,7 +113,7 @@ lambdas = getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths
 
 %-- Define Pupil phase (and ttres) files
 % Folder with files
-wfrfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\res12_apRad258_AllOn_FullADCErrors_120Samps\';
+wfrfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\res12_apRad256_AllOn_118Samps_JuneRun\';
 % filenames
 wfrfnm = 'wfr';
 ttrfnm = 'ttres';
@@ -142,9 +142,11 @@ isSPIEDisp = true;
 %-- Saving parameters
 % Flag to save gif
 isSaveGif = true;
+% Flag to save frames
+isSaveFrames = true;
 % Save folder
 %svfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\IndividualScriptTest\';
-svfld = psfEMapfld;
+svfld = [psfEMapfld 'Frames\'];
 if isSaveGif
     % Create foler if it doesn't already exist
     mkdir(svfld)
@@ -395,8 +397,8 @@ if i == 1
     ylabel('\eta_p [%]', 'FontWeight', fontblAx, 'FontSize', fontszAx)
     xlabel(xlab, 'FontWeight', fontblAx, 'FontSize', fontszAx)
     title([sprintf('Broadband Planet Coupling\nfrom %3.1f', qvec(ind2pull-prg)/lambdaOverD) '\lambda/D to ' num2str(qvec(ind2pull+prg)/lambdaOverD,'%3.1f') '\lambda/D'], 'FontSize', fontszTi)
-    % Display running average (position empirically determined)
-    eta_pavg = annotation('textbox', [0.055 0.11 0.1 0.04], 'String', ['Average: ' num2str(mean(eta_ps,'omitnan'),'%0.2f') '%'],'FontSize', fontszAx, 'FontWeight', fontblAx);
+    % Display running average (position empirically determined) [0.055 0.11 0.105 0.04] <-- for 2-digit couplings
+    eta_pavg = annotation('textbox', [0.055 0.11 0.10 0.04], 'String', ['Average: ' num2str(mean(eta_ps,'omitnan'),'%0.2f') '%'],'FontSize', fontszAx, 'FontWeight', fontblAx);
     
     %-- Plot instantaneous EMap (at lambda0)
     axEMap = subplot(2,3,3);
@@ -475,6 +477,13 @@ if isSaveGif
     else
         imwrite(imind,cm,[svfld svnmGif],'gif','WriteMode','append','DelayTime', gifDelay); 
     end
+    if isSaveFrames
+        saveas(gifFig, [svfld sprintf(['Frame' wfrFMT '.png'],i)]);
+    end
 end
 
+end
+
+if isSaveGif
+    saveas(gifFig, [svfld 'SPIEFig_FinalFrame.png'])
 end

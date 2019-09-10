@@ -89,7 +89,7 @@ Notes:___
 %}
 
 clear; close all; 
-addpath('VFNlib');
+addpath('C:\Users\danie\Documents\MATLAB\VFN-Simulations\VFNlib');
 addpath(genpath('C:\Users\danie\Documents\MATLAB\VFN-Lab\AnalysisCode\'))
 
 %% Input parameters 
@@ -110,14 +110,15 @@ isrealWF = true;      % Flag to mark if real or synthetic WFs should be used
 recNMds = 36;
 if isrealWF
     % Real WF data parameters
-    wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
-    %wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190617\';
+    %wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
+    wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190617\';
+        % NOTE: June data only has 1 minute's worth (59,000 samples)
     wfRSN = 'residualWF.fits';          % Filename for residuals
     wfMKN = 'DMPupil.fits';             % Filename for pupil mask on residuals
     % NOTE::: Raw data assumed to be in [Volts]
     % Define sample start, end, and step values
-    wfstrt = 100;
-    wfSamps = 20;
+    wfstrt = 1;
+    wfSamps = 118;
     wfStepSz = 500;
     % Scaling factor for data (nm/V)
     wfSCL = 600;     
@@ -143,8 +144,8 @@ keckD = 10.949;                 % Real-world keck pupil diameter [m] - 10.949 = 
 ttSCL = keckD/206265/lambda0;       % (D in [m])/(arcsec/rad)/(lambda in [m])  = arcsec2wavesPV
 if isrealTT
     % Real TT data parameters
-    ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
-    %ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190617\';
+    %ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
+    ttPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190617\';
     ttRSN = 'residualTT.fits';          % Filename for residuals
     % NOTE::: raw data assumed to be in [arcsec]
     % Define sample start values
@@ -176,8 +177,8 @@ isrealADC = true;
 if isrealADC
     %-- Real ADC params
     adcPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\ADC_residuals\';
-    %adcRSN = 'corrected_dispersion_K_z30.csv';
-    adcRSN = 'uncorr_dispersion_K_z30.csv';
+    adcRSN = 'corrected_dispersion_K_z30.csv';
+    %adcRSN = 'uncorr_dispersion_K_z30.csv';
     % NOTE::: files should be in csv, col1=wavelengths, col2=lambdas in [mas]. 
     %   Values are interpolated from this data. 
 else
@@ -202,11 +203,11 @@ isPlotResCof = true;
 
 %-- Saving parameters
 % Flag to save gif
-isSaveGif = true;
+isSaveGif = false;
 % Flag to save fits
-isSaveFit = true;
+isSaveFit = false;
 % Save folder
-svfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\res12_apRad258_AllOn_FullADCErrors_120Samps\';
+svfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\res12_apRad256_AllOn_118Samps_JuneRunBLAH\';
 if isSaveFit
     % Create foler if it doesn't already exist
     mkdir(svfld)
@@ -666,4 +667,8 @@ if isSaveGif && isPlotSimp
     end
 end
 
+end
+
+if isSaveGif && isPlotSimp
+    saveas(fig, [svfld 'WFR_FinalFrame.png'])
 end

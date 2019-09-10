@@ -89,7 +89,7 @@ Notes:___
 %}
 
 clear; close all; 
-addpath('VFNlib');
+addpath('C:\Users\danie\Documents\MATLAB\VFN-Simulations\VFNlib');
 addpath(genpath('C:\Users\danie\Documents\MATLAB\VFN-Lab\AnalysisCode\'))
 
 %% Input parameters 
@@ -105,12 +105,12 @@ numWavelengths = 5;% number of discrete wavelengths
 lambdas = getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths (meters)
 
 % Define charge of the vortex mask at each wavelength
-charge = 2*ones(1,numWavelengths); % achromatic
+charge = 1*ones(1,numWavelengths); % achromatic
 %charge = 2*lambda0./lambdas; % simple scalar model
 
 %-- Define Pupil phase files
 % Folder with files
-phzfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\res12_apRad258_AllOn_FullADCErrors_120Samps\';
+phzfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\res12_apRad256_AllOn_118Samps_JuneRun\';
 % filename
 phzfnm = 'pupphz';
 % filename counter format
@@ -133,7 +133,7 @@ isSaveGif = true;
 isSaveFit = true;
 % Save folder
 %svfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\IndividualScriptTest\';
-svfld = [phzfld 'Charge2\'];
+svfld = [phzfld 'Charge1\'];
 if isSaveFit
     % Create foler if it doesn't already exist
     mkdir(svfld)
@@ -202,13 +202,13 @@ axlimPSF = [-3 3 -3 3];     % x-y axis limits
 % Eta Map
 axlim2EMap = axlimPSF;      % x-y axis limits
 % Eta_p plots
-axYlimEtaP = [0 12];        % y axis limit
+axYlimEtaP = [0 20];        % y axis limit
 
 %-- Coloraxes
 % PSF
     % Determined empirically from several samples
     % Feel free to modify as needed
-caxlimPSF = [0 0.22];  
+caxlimPSF = [0 0.33];  
 % Eta map
 caxlimEMap = axYlimEtaP/100;
 
@@ -325,4 +325,8 @@ if isSaveGif && isPlotSimp
     end
 end
 
+end
+
+if isSaveGif && isPlotSimp
+    saveas(fig, [svfld 'PSF_Emaps_FinalFrame.png'])
 end
