@@ -108,16 +108,17 @@ lambdas = getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths
 charge = 1*ones(1,numWavelengths); % achromatic
 %charge = 2*lambda0./lambdas; % simple scalar model
 
-%-- Define Pupil phase files
+%-- Define WFR + ttres files
 % Folder with files
 phzfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\res12_apRad256_AllOn_118Samps_JuneRun\';
 % filename
-phzfnm = 'pupphz';
+wfrfnm = 'wfr';
+ttrfnm = 'ttres';
 % filename counter format
-phzFMT = '%06d';
+wfrFMT = '%06d';
 
 %-- Define wfSamps based on number of fits files
-wfSamps = size(dir([phzfld phzfnm '*.fits']),1);
+wfSamps = size(dir([wfrfld wfrfnm '*.fits']),1);
 
 %--Offsets for the vortex mask
 offsetX = 0*apRad;%0.0952*apRad;
@@ -133,7 +134,7 @@ isSaveGif = true;
 isSaveFit = true;
 % Save folder
 %svfld = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\KPIC_OnSkySims\IndividualScriptTest\';
-svfld = [phzfld 'Charge1\'];
+svfld = [wfrfld 'Charge2\'];
 if isSaveFit
     % Create foler if it doesn't already exist
     mkdir(svfld)
@@ -225,21 +226,47 @@ fprintf('wfSamp %06d of %06d\n', i, wfSamps);
 %%  Define pupil field
 
 %-- Read WF File
-pupphz = fitsread([phzfld sprintf([phzfnm phzFMT '.fits'],i)]);
+wfr = fitsread([wfrfld sprintf([wfrfnm wfrFMT '.fits'],i)]);
 
-%-- Pad to match PUPIL size
+%-- Convert wfr from nm to phase
+% Change 'nans' back to zeros
+wfr(isnan(wfr)) = 0;
+% Convert to phase
+wfr = wfr*2*pi/lambda0/1e9;
+
+%-- Pad wfr to match PUPIL size
 % Pad to match Simulated pupil diameter
-pd = size(pupphz(:,:,1)) - [N N];
+pd = size(wfr) - [N N];
 if pd(1) < 0
     % Need to add rows 
-    pupphz = padarray(pupphz, [-round(pd(1)/2) 0 0]);
+    wfr = padarray(wfr, [-round(pd(1)/2) 0]);
 end
 if pd(2) < 0
     % Need to add columns
-    pupphz = padarray(pupphz, [0 -round(pd(2)/2) 0]);
+    wfr = padarray(wfr, [0 -round(pd(2)/2)]);
 end
 % Final crop to ensure proper size: padding adds 1 extra row/col
-pupphz = pupphz(1:N, 1:N,:);
+wfr = wfr(1:N, 1:N);
+
+%-- Read ttres file
+ttres = fitsread([wfrfld ttrfnm '.fits']);
+
+for ch = 1:numWavelengths
+    %*** DEAL WITH TT AND ADC RESIDUALS (in loop to do by wavelength)
+    % Check if there are any non-zero values in ttres in case user has disabled 
+        % TT/ADC residuals via setting all to 0
+    if find(ttres(:,:,ch))
+        %-- Non-zero value found thus apply TT/ADC residuals
+        % Build TT/ADC wavefronts
+        ttphz = 2*pi*ttres(i,1,ch)*lambdaOverD*coords.X/N;  % Create X tilt
+        ttphz = ttphz + 2*pi*ttres(i,2,ch)*lambdaOverD*coords.Y/N;  % Add Y tilt
+    else
+        ttphz = zeros(N, N);
+    end
+    
+    %*** COMBINE ALL PHASE ERRORS 
+    pupphz(:,:,ch) = (ttphz + wfr)*lambda0/lambdas(ch);   % also rescale to lambda
+end
 
 for ch = 1:numWavelengths
     Epup(:,:,ch) = exp(1i*pupphz(:,:,ch)).*PUPIL;

@@ -594,22 +594,8 @@ else
     wfphz = generateZernike_fromList( nolls, coeffs(i,:), PUPIL, pupCircDiam/2, coords); 
 end
 
-for ch = 1:numWavelengths
-    %*** DEAL WITH TT AND ADC RESIDUALS (in loop to do by wavelength)
-    % Check if there are any non-zero values in ttres in case user has disabled 
-        % TT/ADC residuals via setting all to 0
-    if find(ttres(:,:,ch))
-        %-- Non-zero value found thus apply TT/ADC residuals
-        % Build TT/ADC wavefronts
-        ttphz = 2*pi*ttres(i,1,ch)*lambdaOverD*coords.X/N;  % Create X tilt
-        ttphz = ttphz + 2*pi*ttres(i,2,ch)*lambdaOverD*coords.Y/N;  % Add Y tilt
-    else
-        ttphz = zeros(N, N);
-    end
-    
-    %*** COMBINE ALL PHASE ERRORS 
-    pupphz(:,:,ch) = (ttphz + wfphz)*lambda0/lambdas(ch);   % also rescale to lambda
-end
+%NOTE::: All pupphz stuff removed from this script since we no longer save this
+%file in order save hardrive space. pupphz is now generated in EMapGenerator.
 
 % Convert WFE from rads to nm
 wfr = wfphz/2/pi*lambda0*1e9.*PUPIL;      %.*PUPIL Optional to show with pupil
@@ -650,8 +636,6 @@ end
 if isSaveFit
     %-- Save WFR part of data
     fitswrite(wfr(wfrCrp, wfrCrp), [svfld sprintf('wfr%06d.fits',i)]);
-    %-- Save combined pupil phase
-    fitswrite(pupphz(wfrCrp, wfrCrp,:), [svfld sprintf('pupphz%06d.fits',i)]);
 end
 
 if isSaveGif && isPlotSimp
