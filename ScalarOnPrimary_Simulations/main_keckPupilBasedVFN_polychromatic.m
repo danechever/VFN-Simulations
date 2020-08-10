@@ -43,6 +43,13 @@ inputs.hexAmpConst = NaN(inputs.N, inputs.N, 36);
 inputs.hexPhzConst = NaN(inputs.N, inputs.N, 36);
 
 initial = NaN(36,3);
+ loc = 1;
+ for ringNum = 1:3 %adds absolute value of tilt to each segment in the position they are added.
+     for seg = (loc):(loc+ringNum*6-1)
+         initial(seg,1:2) = (1*2*pi)/(ringNum*6);
+     end
+     loc = (loc+ringNum*6);
+ end
 
 segs = ones(1,36);
 count = 1;
@@ -58,7 +65,7 @@ count = 1;
          initial(count,2) = initial(count,2) * cos(t);
          initial(count,3) = t/(2*pi);
          
-         [inputs.hexAmpConst(:,:,count), inputs.hexPhzConst(:,:,count)] = genHexConstants(crow, ccol, inputs.numRings, inputs.apDia0, inputs.wGap, zeros(inputs.N));
+         [inputs.hexAmpConst(:,:,count), inputs.hexPhzConst(:,:,count)] = generateHexConstants(crow, ccol, inputs.numRings, inputs.apDia0, inputs.wGap, zeros(inputs.N));
          
      end
 
@@ -85,7 +92,7 @@ count = 1;
                     initial(count,2) = initial(count,2) * cos(t);
                     initial(count,3) = t/(2*pi);
                     
-                    [inputs.hexAmpConst(:,:,count), inputs.hexPhzConst(:,:,count)] = genHexConstants(crow, ccol, inputs.numRings, inputs.apDia0, inputs.wGap, zeros(inputs.N));
+                    [inputs.hexAmpConst(:,:,count), inputs.hexPhzConst(:,:,count)] = generateHexConstants(crow, ccol, inputs.numRings, inputs.apDia0, inputs.wGap, zeros(inputs.N));
 
                  end
              count = count + 1;
