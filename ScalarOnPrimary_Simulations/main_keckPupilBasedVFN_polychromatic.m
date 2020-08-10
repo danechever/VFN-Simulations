@@ -1,5 +1,5 @@
-clear; close all; 
-addpath('VFNlib');
+clear; close all;
+addpath(['..' filesep 'VFNlib']);
 
 %% Input parameters 
 
@@ -35,12 +35,14 @@ coords = generateCoordinates(inputs.N);% Creates NxN arrays with coordinates
 xvals = coords.xvals;% Helpful for plotting
 yvals = coords.yvals;
 
-%% Fun Loops that Make things faster :)
+%% Create matrix with tilt and pistons for the analytical solution, generate constant coefficients for phase and amplitude for each hexagonal segment.
 hexFlatDiam = (inputs.apDia0-3*2*inputs.wGap)/(2*3+1);
 inputs.hexSep = hexFlatDiam + inputs.wGap;
 
 inputs.hexAmpConst = NaN(inputs.N, inputs.N, 36);
 inputs.hexPhzConst = NaN(inputs.N, inputs.N, 36);
+
+initial = NaN(36,3);
 
 segs = ones(1,36);
 count = 1;
@@ -51,9 +53,10 @@ count = 1;
      t = round(t,3);
      
      if(segs(count) == 1)
-%          initial(count,1) = initial(count,1) * -sin(t);
-%          initial(count,2) = initial(count,2) * cos(t);
-%          initial(count,3) = t/(2*pi);
+           %Uncomment below to use analytical solution
+         initial(count,1) = initial(count,1) * -sin(t);
+         initial(count,2) = initial(count,2) * cos(t);
+         initial(count,3) = t/(2*pi);
          
          [inputs.hexAmpConst(:,:,count), inputs.hexPhzConst(:,:,count)] = genHexConstants(crow, ccol, inputs.numRings, inputs.apDia0, inputs.wGap, zeros(inputs.N));
          
@@ -77,9 +80,10 @@ count = 1;
                  disp('finished ring');
              else
                  if(segs(count) == 1)
-%                     initial(count,1) = initial(count,1) * -sin(t);
-%                     initial(count,2) = initial(count,2) * cos(t);
-%                     initial(count,3) = t/(2*pi);
+                     %Uncomment below to use analytical solution
+                    initial(count,1) = initial(count,1) * -sin(t);
+                    initial(count,2) = initial(count,2) * cos(t);
+                    initial(count,3) = t/(2*pi);
                     
                     [inputs.hexAmpConst(:,:,count), inputs.hexPhzConst(:,:,count)] = genHexConstants(crow, ccol, inputs.numRings, inputs.apDia0, inputs.wGap, zeros(inputs.N));
 
@@ -107,6 +111,7 @@ inputs.lambdaOverD = inputs.N/inputs.apRad/2; % lam/D in units of samples in the
  grid on;
  drawnow;
 
+ addpath(['..' filesep '..' filesep 'falco-matlab' filesep 'lib' filesep 'utils']);
   %-- Decrease matrix size in pupil plane to reduce runtime
  inputs.PUP_CRP_SZ = round(2.1*inputs.apRad);
  inputs.hexAmpConst = pad_crop(inputs.hexAmpConst,inputs.PUP_CRP_SZ);
@@ -114,10 +119,10 @@ inputs.lambdaOverD = inputs.N/inputs.apRad/2; % lam/D in units of samples in the
 %% Define pupil field
 
 %phz = generateZernike_fromList( inputs.nolls, inputs.coeffs, PUPIL, inputs.apRad, coords);
-optSeed = load('optVarsRelTints','optimum');
-disp(optSeed);
+%optSeed = load('exampleFile.mat','optimum');
+%disp(optSeed);
 
-phz = angle(makeKeckPupilInputs( inputs, optSeed.optimum));
+phz = angle(makeKeckPupilInputs( inputs, initial));
 %phz(:,:,ch) = angle(makeKeckPupilPhz(inputs.apDia0, inputs.N, inputs.charge));
 %phz = angle(makeKeckPupilPhase(2*apRad,N,chargeC));
 %phz2 = angle(makeKeckPupilField(2*apRad,N));
