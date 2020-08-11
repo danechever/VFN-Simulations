@@ -1,3 +1,8 @@
+%This script verifies that the analytical vortex solution is as close to
+%the 'ideal' where a circular phase mask is superimposed over the Keck
+%pupil. This script optimizes the analytical solution using a least squares
+%minimizer to be as close to this 'ideal' as possible.
+
 clear; close all;
 addpath(['..' filesep 'VFNlib']);
 
@@ -274,77 +279,6 @@ for ch = 1:vars.numWavelengths
     colorbar;
     colormap(gray(256));
 end
-
-% %% Input parameters 
-% 
-% % Define smapling info
-% N = 2^11; % Size of computational grid (NxN samples) 
-% apRad = 128; % Aperture radius in samples 
-% 
-% % Define wavelength info
-% lambda0 = 2.2e-6; %central wavelength
-% fracBW = 0.1818; %\Delta\lambda/\lambda
-% numWavelengths = 1;% number of discrete wavelengths 
-% lambdas = lambda0; %getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths (meters)
-% 
-% % Define charge of the vortex mask at each wavelength
-% %charge = ones(1,numWavelengths); % achromatic
-% charge = 1 *(lambda0./lambdas); % simple scalar model
-% 
-% % Define wavefront error at the central wavelength
-% nolls = 4:8;
-% coeffs = 0*[0.01,-0.0099,-0.0095,-0.0008,0.0033];
-% 
-% % Give offsets for the vortex mask
-% offsetX = 0;%0.0952*apRad;
-% offsetY = 0;%0.0524*apRad; 
-% 
-% %% Generate the coordinate system
-% 
-% coords = generateCoordinates(N);% Creates NxN arrays with coordinates 
-% xvals = coords.xvals;% Helpful for plotting
-% yvals = coords.yvals;
-% 
-% %% Create array with pupil function
-% 
-% PUPIL = makeKeckPupil(2*apRad, N );
-% [normI, totalPower0] = getNormalization(PUPIL);% Normalization factors
-% lambdaOverD = N/apRad/2; % lam/D in units of samples in the image plane
-% 
-%  figure(1)
-%  imagesc(xvals/apRad,yvals/apRad,PUPIL);
-%  axis image; 
-%  axis([-1 1 -1 1]);
-%  title('Pupil');
-%  colorbar; 
-%  colormap(parula(256));
-%  grid on;
-%  drawnow;
-% 
-% %% Define pupil field
-% 
-% %phz = generateZernike_fromList( nolls, coeffs, PUPIL, apRad, coords);
-% for ch = 1:numWavelengths
-%     phz(:,:,ch) = angle(makeKeckPupilPhz(2*apRad,N,charge(ch)));
-% end
-% %phz = angle(makeKeckPupilPhase(2*apRad,N,chargeC));
-% % phz2 = angle(makeKeckPupilField(2*apRad,N));
-% 
-% figure(2);
-% for ch = 1:numWavelengths
-%     Epup(:,:,ch) = exp(1i*phz(:,:,ch)*lambda0/lambdas(ch)).*PUPIL;
-%     
-%     subplot(1,numWavelengths,ch);
-%     imagesc(xvals/apRad,yvals/apRad,angle(Epup(:,:,ch)));
-%     axis image; 
-%     axis xy;
-%     axis([-1 1 -1 1]);
-%     title(['Phase at ',num2str(lambdas(ch)*1e9),'nm']);
-%     colorbar; 
-%     colormap(hsv(256));
-%    
-% end
-% drawnow;
 
 
 

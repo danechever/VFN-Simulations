@@ -1,3 +1,5 @@
+%This file recreates the results in Ruane et. al. 2019 for a circular pupil
+
 clear; close all; 
 addpath('VFNlib');
 
@@ -72,20 +74,6 @@ for ch = 1:numWavelengths
 end
 drawnow;
 
-% figure(10);
-% for ch = 1:numWavelengths
-%     Epup(:,:,ch) = exp(1i*phz2*lambda0/lambdas(ch)).*PUPIL;
-%     
-%     subplot(1,numWavelengths,ch);
-%     imagesc(xvals/apRad,yvals/apRad,angle(Epup(:,:,ch)));
-%     axis image; 
-%     axis([-1 1 -1 1]);
-%     title(['Phase at ',num2str(lambdas(ch)*1e9),'nm']);
-%     colorbar; 
-%     colormap(hsv(256));
-% end
-% drawnow;
-
 %% Get PSF without vortex mask
 
 %Get broadband PSF
@@ -112,7 +100,7 @@ for ch = 1:numWavelengths
     imagesc(xvals/apRad,yvals/apRad,angle(EPM(:,:,ch).*Epup(:,:,ch)));
     axis image; 
     axis([-1 1 -1 1]);
-    title('Pupil phase at \lambda_0');
+    title(['Pupil phase at ', num2str(lambdas(ch)*1e9) 'nm']);
     colorbar;
     colormap(hsv(256));
 end
@@ -168,7 +156,7 @@ end
 Xshift = zeros(numWavelengths,1);
 Yshift = zeros(numWavelengths,1);
 etas = zeros(numWavelengths, 1);
-%etas_offset = zeros(numWavelengths, 1);
+
 for ch = 1:numWavelengths 
     map = eta_maps(:,:,ch); %one slice of the eta_maps cube
     map_max = max(map,[],'all'); %the maximum value in cmap
@@ -186,9 +174,9 @@ for ch = 1:numWavelengths
     Yshift(ch) = N/2-min_ind(1);%^
     
     etas(ch) = cmap_min;
-    %etas_offset(ch) = sqrt((Xshift(ch))^2 + (Yshift(ch)^2));
 end
 
+%Null shift plots for X, Y, and the trendlines that result
 figure(7);
 subplot(2,2,1);
 plot(lambdas/lambda0,Xshift/lambdaOverD, '-o', 'Color', 'r');
@@ -221,6 +209,7 @@ ylabel('\eta')
 txt = ['p value: ' num2str(py)];
 text(mean(lambdas/lambda0),mean(px),txt);
 
+%Null value vs wavelength offset from central wavelength
 figure(8);
 subplot(1,1,1);
 semilogy(lambdas/lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
@@ -229,6 +218,7 @@ xlabel('\lambda/\lambda0')
 ylabel('\eta')
 grid on
 
+%Actual positional offset of null for x and y overlayed
 figure(9);
 plot(lambdas/lambda0,Xshift/lambdaOverD, '-o', 'Color', 'r');
 hold on
@@ -239,6 +229,7 @@ xlabel('\lambda/\lambda_0')
 ylabel('Null Shift [\lambda/D]')
 grid on
 
+%Overlay of trends in x and y null positional offset
 figure(12);
 plot(lambdas/lambda0,pxy,'-o','Color','r');
 hold on

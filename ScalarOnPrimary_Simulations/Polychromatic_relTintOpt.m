@@ -3,6 +3,9 @@ addpath(['..' filesep 'VFNlib']);
 
 %% Input parameters 
 
+% Define path where output files will be saved
+svPth = 'Enter the path to your output folder here';
+
 % Define Sampling Info - initialized as struct for easy access
 vars.N = 2^11;
 vars.apRad = 128;
@@ -139,10 +142,11 @@ count = 1;
      end
  end
  
- initial(:,1) = 0;
- initial(:,2) = 0;
+%  initial(:,1) = 0;
+%  initial(:,2) = 0;
  
  addpath(['..' filesep '..' filesep 'falco-matlab' filesep 'lib' filesep 'utils']);
+ 
  %-- Decrease matrix size in pupil plane to reduce runtime
  vars.PUP_CRP_SZ = round(2.1*vars.apRad);
  vars.hexAmpConst = pad_crop(vars.hexAmpConst,vars.PUP_CRP_SZ);
@@ -168,7 +172,7 @@ for ch = 1:vars.numWavelengths
 end
 drawnow;
 
-%% relative integration time Min Function
+%% Relative integration time function handle
 nItrCap = 1000;
 vars.relTintArray = nan(nItrCap*1.2,1);
 vars.n_calls = 1;
@@ -176,25 +180,17 @@ ssMin = @(inputs) makeKeckPupilLeastSquaresRelTintOpt( vars, inputs, fiber_props
 
 %% Optimization
 
-% global relTintArray;
-reltintArray = zeros(1);
-
-% history = struct('x',[],'fval',[]);
-% history(1) = [];
-% save('history.mat');
 options = optimoptions('fmincon','MaxFunctionEvaluations', nItrCap);
-[localMinX,fvalY,history] = fmincon(ssMin, initial,[],[],[],[],[],[],[], options);
+[localMinX,fvalY] = fmincon(ssMin, initial,[],[],[],[],[],[],[], options);
 disp(localMinX);
 disp(fvalY);
 
-disp(relTintArray);
-% load('history.mat');
-% disp([history.x]);
+disp(vars.relTintArray);
 
 %% Display Optimum Phase Pattern
 
 optimum = localMinX;
-save('optVarsRelTints2.mat', 'optimum');
+save([svPth filesep 'optVarsRelTints.mat'], 'optimum');
 optPhz = angle(makeKeckPupilInputs( vars, optimum ));
 
 figure(5); %Displays the optimized phase on the Keck pupil at the resolution it was calculated at
@@ -210,68 +206,6 @@ for ch = 1:vars.numWavelengths
     colormap(hsv(256));
 end
 
-%% Initialize new Pupil with greater resolution
-
-% hres.N = 2^11; % Size of computational grid (NxN samples) 
-% hres.apRad = 128; % Aperture radius in samples
-% hres.apDia0 = 2 * hres.apRad;
-% 
-% %Define wavelength info
-% hres.lambda0 = 2.2e-6;
-% hres.fracBW = 0.1818;
-% hres.numWavelengths = 5;
-% hres.lambdas = getWavelengthVec(hres.lambda0,hres.fracBW,hres.numWavelengths);% array of wavelengths (meters)
-% 
-% %Define charge of the vortex mask at each wavelength
-% %charge = ones(1,numWavelengths); % achromatic
-% hres.charge = hres.lambda0./hres.lambdas;
-% 
-% %Define wavefront error at the central wavelength
-% hres.nolls = 4:8;
-% hres.coeffs = 0*[0.01,-0.0099,-0.0095,-0.0008,0.0033];
-% 
-% %Give offsets for the vortex mask
-% hres.offsetX = 0;
-% hres.offsetY = 0;
-% 
-% hres.numRings = 3;
-% hres.wGap = 25.4/10916*hres.apDia0/2;
-% 
-% %Coordinate system
-% coords = generateCoordinates(hres.N);% Creates NxN arrays with coordinates 
-% hres_xvals = coords.xvals;% Helpful for plotting
-% hres_yvals = coords.yvals;
-% 
-% hres_PUPIL = makeKeckPupil(2*hres.apRad, hres.N );
-% [normI, totalPower0] = getNormalization(hres_PUPIL);% Normalization factors
-% hres.lambdaOverD = hres.N/hres.apRad/2; % lam/D in units of samples in the image plane
-% 
-% figure(6);
-% imagesc(hres_xvals/hres.apRad, hres_yvals/hres.apRad, hres_PUPIL);
-% axis image; 
-% axis([-1 1 -1 1]);
-% title('Pupil');
-% colorbar; 
-% colormap(parula(256));
-% grid on;
-% drawnow;
-
-%% Display optimum phase map at higher resolution
-% optPhzHighRes = angle(makeKeckPupilInputs( hres, optimum ));
-% 
-% figure(8);
-% for ch = 1:hres.numWavelengths
-%     Epup4(:,:,ch) = exp(1i*optPhzHighRes*hres.lambda0/hres.lambdas(ch)).*hres_PUPIL;
-%     
-%     subplot(1,hres.numWavelengths,ch);
-%     imagesc(hres_xvals/hres.apRad,hres_yvals/hres.apRad,angle(Epup4(:,:,ch)));
-%     axis image;
-%     axis([-1 1 -1 1]);
-%     title(['Phase at ',num2str(hres.lambdas(ch)*1e9),'nm. Optimized.']);
-%     colorbar; 
-%     colormap(hsv(256));
-% end
-
 %% Generates Coupling Map for Optimised Solution
 
 iPSF_BB = getPSF(Epup_opt,vars.lambda0,vars.lambdas,vars.normI,vars.coords);
@@ -282,7 +216,7 @@ axis image;
 axis xy;
 axis([-2 2 -2 2]);
 title('broadband PSF');
-colorbar;%caxis([-3 0])
+colorbar;
 colormap(parula(256));
 drawnow;
 
@@ -311,9 +245,6 @@ for ch = 1:vars.numWavelengths
     colormap(gray(256));
 end
 
-%% Show eta_s and eta_p
-
-%relTints = makeKeckPupilLeastSquaresETAOPT( vars, optimum, fiber_props, fibmodes);
 
 
 

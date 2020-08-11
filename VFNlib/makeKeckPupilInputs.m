@@ -1,5 +1,5 @@
 function [optField,circum_diam] = makeKeckPupilInputs( vars, seed )
-    %Generates a Keck pupil based on a set of inputs in 'vars'
+    %Generates a Keck pupil based on a set of inputs in 'seed'
     
     addpath([fileparts(which(mfilename)),'/segMirrorFunctions']);
    
