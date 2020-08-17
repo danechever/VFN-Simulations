@@ -112,10 +112,10 @@ drawnow;
 % Parameters for Thorlabs SM600
     % link: https://www.thorlabs.com/NewGroupPage9_PF.cfm?ObjectGroup_ID=949
 fiber_props.core_rad = 4.3e-6/2;% Core radius [um]
-fiber_props.n_core = 1.4606;% core index (interpolated from linear fit to 3 points)
-fiber_props.n_clad = 1.4571;% cladding index (interpolated from linear fit to 3 points)
-Fnum = 5; % focal ratio of the beam at the fiber
+fiber_props.n_core = 1.4571;% core index (interpolated from linear fit to 3 points)
+fiber_props.n_clad = 1.4558;% cladding index (interpolated from linear fit to 3 points)
 fiber_props.type = 'bessel';
+Fnum = getMFD(fiber_props,lambda0)/(lambda0*1.4); % focal ratio of the beam at the fiber
 
 eta_maps = generateCouplingMap_polychromatic( Epup.*EPM, fiber_props, lambda0, Fnum, lambdas, totalPower0, lambdaOverD, 3*lambdaOverD, coords);
 
