@@ -4,7 +4,7 @@ addpath(['..' filesep 'VFNlib']);
 %% Input parameters 
 
 % Define path where output files will be saved
-svPth = 'Enter the path to your output folder here';
+svPth = 'add path to your output folder here';
 
 % Define Sampling Info - initialized as struct for easy access
 vars.N = 2^11;
@@ -125,7 +125,7 @@ count = 1;
              t = round(t,3);
              
              if(face==6 && stepnum ==ringNum)
-                 disp('finished ring');
+%                  disp('finished ring');
              else
                  if(segs(count) == 1)
                     initial(count,1) = initial(count,1) * -sin(t);
@@ -152,8 +152,8 @@ count = 1;
  vars.hexAmpConst = pad_crop(vars.hexAmpConst,vars.PUP_CRP_SZ);
  vars.hexPhzConst = pad_crop(vars.hexPhzConst,vars.PUP_CRP_SZ);
  
- disp(count); 
- disp(initial);
+%  disp(count); 
+%  disp(initial);
 
 %% Define the initial phase for the optimization seed
 phz_initial = angle(makeKeckPupilInputs( vars, initial ));
@@ -185,12 +185,12 @@ options = optimoptions('fmincon','MaxFunctionEvaluations', nItrCap);
 disp(localMinX);
 disp(fvalY);
 
-disp(vars.relTintArray);
+%disp(vars.relTintArray);
 
 %% Display Optimum Phase Pattern
 
 optimum = localMinX;
-save([svPth filesep 'optVarsRelTints.mat'], 'optimum');
+save([svPth filesep 'tt_opt.mat'], 'optimum');
 optPhz = angle(makeKeckPupilInputs( vars, optimum ));
 
 figure(5); %Displays the optimized phase on the Keck pupil at the resolution it was calculated at
@@ -233,10 +233,32 @@ Fnum = getMFD(fiber_props,vars.lambda0)/(vars.lambda0*1.4); % focal ratio of the
 
 eta_maps = generateCouplingMap_polychromatic( Epup_opt, fiber_props, vars.lambda0, Fnum, vars.lambdas, vars.totalPower0, vars.lambdaOverD, 3*vars.lambdaOverD, vars.coords);
 
+%-- Find Relative Integration Time
+eta_map_mean = mean(eta_maps,3);
+crp = 2*0.5*vars.lambdaOverD;
+c_map = eta_map_mean(end/2+1-floor(crp/2):end/2+1+floor(crp/2),end/2+1-floor(crp/2):end/2+1+floor(crp/2)); %the centroid
+eta_s = min(c_map,[],'all'); %minimum value in the centroid
+[min_ind(1),min_ind(2)] = find(eta_s==c_map); %indices of minimum value in the centroid
+min_ind = min_ind + (inputs.N/2-floor(crp/2)); %adjust min values to reflect position in map, not cmap
+        
+eta_sX = min_ind(2);
+eta_sY = min_ind(1);
+
+[radProf2, rvec] = VFN_An_radAverage(eta_map_mean,[eta_sX, eta_sY]);
+[radMx, ind] = max(radProf2);
+rad = rvec(ind);
+
+%-- Calculate relative integration time
+relTints = eta_s./(radMx.^2);
+
 figure(10);
 for ch = 1:vars.numWavelengths
     subplot(1,vars.numWavelengths,ch);
     imagesc(xvals/vars.lambdaOverD, yvals/vars.lambdaOverD, log10(eta_maps(:,:,ch)));
+    hold on;
+    viscircles((min_ind/vars.lambdaOverD - (vars.N/2+1)/vars.lambdaOverD), rad/vars.lambdaOverD);
+    plot((min_ind(1)/vars.lambdaOverD - (vars.N/2+1)/vars.lambdaOverD), (min_ind(2)/vars.lambdaOverD - (vars.N/2+1)/vars.lambdaOverD), 'r+', 'LineWidth', 1);
+    hold off;
     axis image; 
     axis([-2 2 -2 2]);
     caxis([-3 -0.5])
@@ -245,6 +267,18 @@ for ch = 1:vars.numWavelengths
     colormap(gray(256));
 end
 
+figure(11);
+imagesc(xvals/vars.lambdaOverD, yvals/vars.lambdaOverD, log10(eta_map_mean));
+hold on;
+viscircles((min_ind/vars.lambdaOverD - (vars.N/2+1)/vars.lambdaOverD), rad/vars.lambdaOverD);
+plot((min_ind(1)/vars.lambdaOverD - (vars.N/2+1)/vars.lambdaOverD), (min_ind(2)/vars.lambdaOverD - (vars.N/2+1)/vars.lambdaOverD), 'r+', 'LineWidth', 1);
+hold off;
+axis image; 
+axis([-2 2 -2 2]);
+caxis([-3 -0.5])
+title('\eta map averaged');
+colorbar;
+colormap(gray(256));
 
 
 
