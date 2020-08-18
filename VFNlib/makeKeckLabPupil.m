@@ -37,5 +37,8 @@ function [PUPIL,circum_diam] = makeKeckLabPupil( N_flat2flat, Ngrid )
     PUPIL = PUPIL.*(1-exp(-(RHO.*cos(THETA-30*pi/180)/(spwidth/2)).^1000));
     PUPIL = PUPIL.*(1-exp(-(RHO.*cos(THETA+30*pi/180)/(spwidth/2)).^1000));
 
+    PUPIL(PUPIL>1) = 1;
+    PUPIL(PUPIL<0) = 0;
+    
 end
 
