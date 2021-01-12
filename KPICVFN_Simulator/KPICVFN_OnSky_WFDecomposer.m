@@ -34,6 +34,10 @@ Notes:___
         independently in the main loop
     * THUS, some cubes will always need to be saved and a save path should be
         provided
+[01/2021]
+* Modified to work on linux
+    - Use "filesep" and relative pathing (VFN-Lab and falco-matlab should
+        be in same higher-level directory)
 
 Output:___
 	- Zernike Coeffs (recCof but full vector at every instance) [2D matrix: row=time instance, col=zernike coeff]
@@ -59,9 +63,9 @@ Output:___
 %}
 
 clear; close all; 
-addpath('C:\Users\danie\Documents\MATLAB\VFN-Simulations\VFNlib');
-addpath(genpath('C:\Users\danie\Documents\MATLAB\VFN-Lab\AnalysisCode\'))
-addpath(genpath('C:\Users\danie\Documents\MATLAB\falco-matlab\'))
+addpath(['..' filesep 'VFNlib']);
+addpath(genpath(['..' filesep '..' filesep 'VFN-Lab' filesep 'AnalysisCode']))
+addpath(genpath(['..' filesep '..' filesep 'falco-matlab']))
 
 %% Input parameters 
 
@@ -77,7 +81,7 @@ lambda0 = 2200e-9; %central wavelength
 recNMds = 36;
 % Real WF data parameters
 %wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190420\';
-wfPTH = 'C:\Users\danie\OneDrive - California Institute of Technology\Mawet201718\VortexFiberNuller_VFN\Presentations\SPIE_2019\telemetry_20190617\';
+wfPTH = '/media/Data_Drive/VFN/KPIC_PyWFS_Data/telemetry_20190617/';
     % NOTE: June data only has 1 minute's worth (59,000 samples)
 wfRSN = 'residualWF.fits';          % Filename for residuals
 wfMKN = 'DMPupil.fits';             % Filename for pupil mask on residuals
@@ -121,7 +125,7 @@ isSaveRMS_COF = true;
     % Also number of time instances to save per cube of rmsWF and Zernike coeffs
 SAVE_CHK = 590;
 % Save folder
-svfld = 'C:\Users\danie\Documents\VFN_Simulations_Temporary\FirstBigRun\';
+svfld = '/media/Data_Drive/VFN/KPIC_PyWFS_Data/telemetry_20190617/Processed/FullSet/';
 if isSaveFit || isSaveGif || isSaveRMS_COF
     % Create foler if it doesn't already exist
     mkdir(svfld)

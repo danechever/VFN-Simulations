@@ -4,6 +4,7 @@ Code for calculating the null depth of a VFN observation given a set of WFE.
 *** Based heavily off KPICVFN_OnSky_EMapGenerator.m
 
 *** This script is meant to be used with KPICVFN_OnSky_WFDecomposer
+*** The results of this script can be analyzed with: RMS2Null_CoeffCalculator
 
 Goals:___
 - Take in WF residual maps and determine the corresponding null depth
@@ -25,18 +26,22 @@ Notes:___
         Charlotte's data (ie renormalzied or even the raw one) use either
         wfr_reform or wfr_recons files and set isZernWFR false. This will allow
         you to simulate the actual KPIC performance directly.
+* The runtime can be DRASTICALLY reduced by plotting or saving the gif
+    - This achieved with isPlotSimp and isSaveGif = false
+    ** With those settings, you can analyze 5900 frames in ~220s
 %}
 
 clear; close all; 
-addpath('C:\Users\danie\Documents\MATLAB\VFN-Simulations\VFNlib');
-addpath(genpath('C:\Users\danie\Documents\MATLAB\VFN-Lab\AnalysisCode\'))
-addpath(genpath('C:\Users\danie\Documents\MATLAB\falco-matlab'))
+addpath(genpath(['..' filesep 'VFNlib']));
+addpath(genpath(['..' filesep '..' filesep 'VFN-Lab' filesep 'AnalysisCode']))
+addpath(genpath(['..' filesep '..' filesep 'falco-matlab']))
 
+tic
 %% Input parameters 
 
 %-- Extract values below from fits header
 % Folder with files
-wfrfld = 'C:\Users\danie\Documents\VFN_Simulations_Temporary\FirstBigRun\';
+wfrfld = '/media/Data_Drive/VFN/KPIC_PyWFS_Data/telemetry_20190617/Processed/10msSampling/';
 % filename counter format
 wfrFMT = '%06d';
 % fits to reference
@@ -67,7 +72,7 @@ lambdaOverD_samp = 10; %[samples/ (lam/D)] in units of samples in the image plan
 im_size = 6;    %[lam0/D] field of view in final image plane
 
 % Define charge of the vortex mask at each wavelength
-charge = 2*ones(1,numWavelengths); % achromatic
+charge = 1*ones(1,numWavelengths); % achromatic
 %charge = 2*lambda0./lambdas; % simple scalar model
 
 
@@ -84,7 +89,7 @@ pupfnm = 'wfr_pupils';
 % Factor by which to modulate the given zernike mode (should be fractional)
     % Must be (1,N) dimensionality, NOT (N,1)
 zrnMod = ones(1,VFN_An_getKwd(kwds, 'RECNMDS'));
-zrnMod(5:6) = 1;        % Sample increase of 2x primary astig
+zrnMod(:) = 1;        % Sample increase of 2x primary astig
 zrnMod(2:3) = 0;        % remove T/T from this sim since it'll change PSF centering
 % *** Read note header about how to get the most accurate WFR reconstruction
 % with the correct renormalization (for when trying to simulate the real KPIC)
@@ -102,7 +107,7 @@ offsetY = 0*apRad;
 % Flag to use fits file pupil. true=fits, false=regenerate and rotate pupil
 isFitsPup = true;
 % Flag to plot intermediate figures (before SPIE figure)
-isPlotSimp = true;
+isPlotSimp = false;
 % Flag to make figures visible
 visflg = 'off';     % should be 'on' or 'off'
 % Flag to make all figures visible at the end
@@ -111,11 +116,14 @@ isFigsVisEnd = true;
 
 %-- Saving parameters
 % Flag to save gif
-isSaveGif = true;
+isSaveGif = false;
 % Flag to save fits
 isSaveFit = true;
+% OPTIONAL: auto-generate name based on test params
+fldnm = sprintf('ZernAllx%s_Charge%d',strrep(sprintf('%07.3f',zrnMod(1)),'.','p'),charge(1));
+% fldnm = ['ZernAllx0p05_Charge' num2str(charge(1))];
 % Save folder
-svfld = [wfrfld 'ZernNoMod_Charge' num2str(charge(1)) '/'];
+svfld = [wfrfld fldnm filesep];
 if isSaveFit
     % Create foler if it doesn't already exist
     mkdir(svfld)
@@ -521,3 +529,5 @@ if isFigsVisEnd
     h = findobj('type', 'figure');
     set(h, 'Visible', 'on')
 end
+
+toc
