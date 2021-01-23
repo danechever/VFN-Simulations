@@ -144,8 +144,16 @@ phz = angle(makeKeckPupilInputs( inputs, initial));
 %phz = angle(makeKeckPupilPhase(2*apRad,N,chargeC));
 %phz2 = angle(makeKeckPupilField(2*apRad,N));
 
+%Inside this loop, compute wavelength dependent phz offset using wedge fn
 figure(2);
 for ch = 1:inputs.numWavelengths
+    
+%     if ch ~= 3
+%         phzw = phz + getWedgeOffset(3.53,inputs.lambdas(ch));
+%     else
+%         phzw = phz;
+%     end
+    
     Epup(:,:,ch) = exp(1i*phz*inputs.lambda0/inputs.lambdas(ch)).*PUPIL;
     
     subplot(1,inputs.numWavelengths,ch);

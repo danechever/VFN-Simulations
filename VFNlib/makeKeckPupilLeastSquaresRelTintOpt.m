@@ -1,6 +1,6 @@
 function relTints = makeKeckPupilLeastSquaresRelTintOpt( vars, inputs, fiber_props, fibmodes)
     addpath([fileparts(which(mfilename)),'/segMirrorFunctions']);
-    addpath(['..' filesep '..' filesep 'VFN-lab' filesep 'AnalysisCode' filesep 'AnalysisLib']); 
+    addpath(['..' filesep '..' filesep 'VFN-Lab' filesep 'AnalysisCode' filesep 'AnalysisLib']); 
     
 %     persistent n_calls;
 %     if isempty(n_calls)
@@ -47,8 +47,10 @@ function relTints = makeKeckPupilLeastSquaresRelTintOpt( vars, inputs, fiber_pro
     Efield_opt = Efield_opt.*(1-exp(-(RHO.*cos(THETA-30*pi/180)/(spwidth/2)).^1000));
     Efield_opt = Efield_opt.*(1-exp(-(RHO.*cos(THETA+30*pi/180)/(spwidth/2)).^1000));
     
-    
     optPhz = angle(Efield_opt);
+    
+    %--Add wedge effects to the phase here
+    %optPhz = optPhz + getWedgeOffset(theta, n);
     
     for ch = 1:vars.numWavelengths
         Epup_opt(:,:,ch) = exp(1i*optPhz*vars.lambda0/vars.lambdas(ch)).*vars.PUPIL;

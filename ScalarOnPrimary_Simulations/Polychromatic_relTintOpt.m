@@ -1,10 +1,10 @@
 clear; close all; 
+%addpath('/home/vfndev/Documents/MATLAB/VFN-Simulations/VFNlib');
 addpath(['..' filesep 'VFNlib']);
-
 %% Input parameters 
 
 % Define path where output files will be saved
-svPth = 'add path to your output folder here';
+svPth = '/media/Data_Drive/VFN/ScalarOnPrimaryData/cmap_optimizations';
 
 % Define Sampling Info - initialized as struct for easy access
 vars.N = 2^11;
@@ -145,7 +145,8 @@ count = 1;
 %  initial(:,1) = 0;
 %  initial(:,2) = 0;
  
- addpath(['..' filesep '..' filesep 'falco-matlab' filesep 'lib' filesep 'utils']);
+%addpath('/home/vfndev/Documents/MATLAB/falco-matlab/lib/utils');
+addpath(['..' filesep '..' filesep 'falco-matlab' filesep 'lib' filesep 'utils']);
  
  %-- Decrease matrix size in pupil plane to reduce runtime
  vars.PUP_CRP_SZ = round(2.1*vars.apRad);
@@ -239,7 +240,7 @@ crp = 2*0.5*vars.lambdaOverD;
 c_map = eta_map_mean(end/2+1-floor(crp/2):end/2+1+floor(crp/2),end/2+1-floor(crp/2):end/2+1+floor(crp/2)); %the centroid
 eta_s = min(c_map,[],'all'); %minimum value in the centroid
 [min_ind(1),min_ind(2)] = find(eta_s==c_map); %indices of minimum value in the centroid
-min_ind = min_ind + (inputs.N/2-floor(crp/2)); %adjust min values to reflect position in map, not cmap
+min_ind = min_ind + (vars.N/2-floor(crp/2)); %adjust min values to reflect position in map, not cmap
         
 eta_sX = min_ind(2);
 eta_sY = min_ind(1);
