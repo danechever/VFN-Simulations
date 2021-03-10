@@ -54,7 +54,9 @@ for ringNum = 1:numRings
     
     if(missingSegments(count)==1)
         %This part adds the 1st segment in each ring.
-        [OUT] = hexSegMirror_addHexSegment_Modified(cenrow,cencol,apDia,charge*piston(count),charge*tiltx(count),charge*tilty(count),OUT, grdX, grdY, hexAmpConst(:,:,count), hexPhzConst(:,:,count) );
+        [OUT] = hexSegMirror_addHexSegment_Modified(cenrow,cencol,apDia,...
+            charge*piston(count),charge*tiltx(count),charge*tilty(count),OUT,...
+            grdX, grdY, hexAmpConst(:,:,count), hexPhzConst(:,:,count) );
     end
     count = count + 1;
     
@@ -74,7 +76,9 @@ for ringNum = 1:numRings
             else
                 if(missingSegments(count)==1)
                     %This part adds the majority of the segments
-                    [ OUT ] = hexSegMirror_addHexSegment_Modified(cenrow,cencol,apDia,charge*piston(count),charge*tiltx(count),charge*tilty(count),OUT, grdX, grdY, hexAmpConst(:,:,count), hexPhzConst(:,:,count) );
+                    [ OUT ] = hexSegMirror_addHexSegment_Modified(cenrow,cencol,apDia,...
+                        charge*piston(count),charge*tiltx(count),charge*tilty(count),OUT,...
+                        grdX, grdY, hexAmpConst(:,:,count), hexPhzConst(:,:,count) );
                 end
                 count = count + 1;
             end

@@ -4,7 +4,7 @@
 % at the California Institute of Technology.
 % -------------------------------------------------------------------------
 %
-function [ arrayOut ] = hexSegMirror_addHexSegment_Modified( cenrow, cencol, apDia, piston, tiltx, tilty, arrayIn, X, Y, hexAmpConst, hexPhzConst)
+function [ arrayOut ] = hexSegMirror_addHexSegment_Modified( cenrow, cencol, apDia,piston, tiltx, tilty, arrayIn, X, Y, hexAmpConst, hexPhzConst)
 %hexSegMirror_addHexSegment Adds hexagonal mirror segment to arrayIn, 
 % centered at (cenrow, cencol). The full mirror have numRings rings of 
 % hexagonal segments, flat-to-flat diameter (in samples) of apDia, 
@@ -36,6 +36,8 @@ function [ arrayOut ] = hexSegMirror_addHexSegment_Modified( cenrow, cencol, apD
              .*exp(1i*2*pi.*(piston+ ...
                              tiltx/apDia*(X-cencol)+...
                              tilty/apDia*(Y-cenrow)));
+                         
+%    HEXphzw = HEXphz.*exp(1i*2*pi.*(tiltw/apDia*(Y-cenrow)));
                          
 %             .*exp(1i*2*pi*piston)...
 %             .*exp(1i*2*pi*tiltx/apDia*(X-cencol))...

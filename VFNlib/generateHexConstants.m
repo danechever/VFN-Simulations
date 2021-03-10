@@ -8,8 +8,6 @@ function [hexAmpConst, hexPhzConst] = generateHexConstants(cenrow, cencol, numRi
     
 
     [X,Y] = meshgrid(-cols/2:cols/2-1,-rows/2:rows/2-1); % Grids with Cartesian (x,y) coordinates
-%     disp(X);
-%     disp(Y);
 
     RHOprime = sqrt((X-cencol).^2+(Y-cenrow).^2);
     %disp(size(RHOprime));
