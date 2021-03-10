@@ -11,7 +11,7 @@ addpath(['..' filesep 'VFNlib']);
 %% Input parameters 
 
 % Define sampling info
-inPar.N = 2^11; % Size of computational grid (NxN samples) 
+inPar.N = 2^12; % Size of computational grid (NxN samples) 
 inPar.apRad = 256; % Aperture radius in samples 
 inPar.apDia0 = 2 * inPar.apRad;
 inPar.keckD = 10.949; %Meters
@@ -19,7 +19,7 @@ inPar.keckD = 10.949; %Meters
 % Define wavelength info
 inPar.lambda0 = 2.2e-6; %central wavelength
 inPar.fracBW = 0.1818; %\Delta\lambda/\lambda
-inPar.numWavelengths = 5;% number of discrete wavelengths 
+inPar.numWavelengths = 41;% number of discrete wavelengths 
 inPar.lambdas = getWavelengthVec(inPar.lambda0,inPar.fracBW,inPar.numWavelengths);% array of wavelengths (meters)
 
 %Define charge of the vortex mask at each wavelength
@@ -38,7 +38,7 @@ inPar.numRings = 3;
 inPar.wGap = 25.4/10916*inPar.apDia0/2;
 
 %Wedge Data
-inPar.p = 1.1001;
+inPar.p = 1.2026;
 inPar.wedge_mat = 'CaF2';
 wedge_angle = atan((inPar.p*inPar.lambda0)/(inPar.keckD*(getRefractiveIndex(inPar.wedge_mat ,1e6*inPar.lambda0) - 1)));
 
@@ -191,6 +191,7 @@ fiber_props.type = 'bessel';
 Fnum = getMFD(fiber_props,inPar.lambda0)/(inPar.lambda0*1.4); % focal ratio of the beam at the fiber
 
 eta_maps = generateCouplingMap_polychromatic( Epups, fiber_props, inPar.lambda0, Fnum, inPar.lambdas, totalPower0, inPar.lambdaOverD, 3*inPar.lambdaOverD, coords);
+eta_maps_NOWEDGE = generateCouplingMap_polychromatic( Epup, fiber_props, inPar.lambda0, Fnum, inPar.lambdas, totalPower0, inPar.lambdaOverD, 3*inPar.lambdaOverD, coords);
 
 figure(5);
 for ch = 1:inPar.numWavelengths
@@ -236,6 +237,28 @@ for ch = 1:inPar.numWavelengths
     etas(ch) = cmap_min;
 end
 
+Xshiftnw = zeros(inPar.numWavelengths,1);
+Yshiftnw = zeros(inPar.numWavelengths,1);
+etanw = zeros(inPar.numWavelengths, 1);
+for ch = 1:inPar.numWavelengths 
+    mapnw = eta_maps(:,:,ch); %one slice of the eta_maps cube
+    map_maxnw = max(mapnw,[],'all'); %the maximum value in cmap
+    [max_indnw(1),max_indnw(2)] = find(map_maxnw==mapnw,1); %linear coordinates of max value
+    max_rhonw = sqrt(((inPar.N/2+1)-max_indnw(1))^2 + ((inPar.N/2+1)-max_indnw(2))^2);
+    
+    crpnw = 2*max_rhonw; %The length of one side of the cube to crop the image to
+
+    cmapnw = map(end/2+1-floor(crpnw/2):end/2+1+floor(crpnw/2),end/2+1-floor(crpnw/2):end/2+1+floor(crpnw/2)); %the centroid
+    cmap_minnw = min(cmapnw,[],'all'); %minimum value in the centroid
+    [min_indnw(1),min_indnw(2)] = find(cmap_minnw==cmapnw); %indices of minimum value in the centroid
+    min_indnw = min_indnw + (inPar.N/2-floor(crpnw/2)); %adjust min values to reflect position in map, not cmap
+   
+    Xshiftnw(ch) = inPar.N/2-min_indnw(2); %x value is wavelength, y value is offset
+    Yshiftnw(ch) = inPar.N/2-min_indnw(1);%^
+    
+    etanw(ch) = cmap_minnw;
+end
+
 %-- Null shift plots for X, Y, and the trendlines that result
 figure(6);
 subplot(2,2,1);
@@ -264,11 +287,14 @@ text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
 %-- Null value vs wavelength offset from central wavelength
 figure(7);
 subplot(1,1,1);
+hold on;
 semilogy(inPar.lambdas/inPar.lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
+semilogy(inPar.lambdas/inPar.lambda0,etanw,'-o','Color','b');
 title('Null Value vs \lambda/\lambda0')
 xlabel('\lambda/\lambda0')
 ylabel('\eta')
 grid on
+hold off;
 
 %-- Actual positional offset of null for x and y overlayed
 figure(8);
