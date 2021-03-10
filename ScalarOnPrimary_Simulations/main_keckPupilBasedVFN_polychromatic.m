@@ -11,115 +11,119 @@ addpath(['..' filesep 'VFNlib']);
 %% Input parameters 
 
 % Define smapling info
-inputs.N = 2^11; % Size of computational grid (NxN samples) 
-inputs.apRad = 128; % Aperture radius in samples 
-inputs.apDia0 = 2 * inputs.apRad;
+inPar.N = 2^12; % Size of computational grid (NxN samples) 
+inPar.apRad = 256; % Aperture radius in samples 
+inPar.apDia0 = 2 * inPar.apRad;
 
 % Define wavelength info
-inputs.lambda0 = 2.2e-6; %central wavelength
-inputs.fracBW = 0.1818; %\Delta\lambda/\lambda
-inputs.numWavelengths = 5;% number of discrete wavelengths 
-inputs.lambdas = getWavelengthVec(inputs.lambda0,inputs.fracBW,inputs.numWavelengths);% array of wavelengths (meters)
+inPar.lambda0 = 2.2e-6; %central wavelength
+inPar.fracBW = 0.1818; %\Delta\lambda/\lambda
+inPar.numWavelengths = 15;% number of discrete wavelengths 
+inPar.lambdas = getWavelengthVec(inPar.lambda0,inPar.fracBW,inPar.numWavelengths);% array of wavelengths (meters)
 
 %Define charge of the vortex mask at each wavelength
 %charge = ones(1,numWavelengths); % achromatic
-inputs.charge = 1*(inputs.lambda0./inputs.lambdas); % simple scalar model
+inPar.charge = 1*(inPar.lambda0./inPar.lambdas); % simple scalar model
 
 % Define wavefront error at the central wavelength
-inputs.nolls = 4:8;
-inputs.coeffs = 0*[0.01,-0.0099,-0.0095,-0.0008,0.0033];
+inPar.nolls = 4:8;
+inPar.coeffs = 0*[0.01,-0.0099,-0.0095,-0.0008,0.0033];
 
 % Give offsets for the vortex mask
-inputs.offsetX = 0;%0.0952*apRad;
-inputs.offsetY = 0;%0.0524*apRad; 
+inPar.offsetX = 0;%0.0952*apRad;
+inPar.offsetY = 0;%0.0524*apRad; 
 
-inputs.numRings = 3;
-inputs.wGap = 25.4/10916*inputs.apDia0/2;
+inPar.numRings = 3;
+inPar.wGap = 25.4/10916*inPar.apDia0/2;
 
 %% Generate the coordinate system
 
-coords = generateCoordinates(inputs.N);% Creates NxN arrays with coordinates 
-xvals = coords.xvals;% Helpful for plotting
-yvals = coords.yvals;
+coords = generateCoordinates(inPar.N);% Creates NxN arrays with coordinates 
+inPar.xvals = coords.xvals;% Helpful for plotting
+inPar.yvals = coords.yvals;
 
 %% Create matrix with tilt and pistons for the analytical solution, generate constant coefficients for phase and amplitude for each hexagonal segment.
-hexFlatDiam = (inputs.apDia0-3*2*inputs.wGap)/(2*3+1);
-inputs.hexSep = hexFlatDiam + inputs.wGap;
-
-inputs.hexAmpConst = NaN(inputs.N, inputs.N, 36);
-inputs.hexPhzConst = NaN(inputs.N, inputs.N, 36);
-
-initial = NaN(36,3);
-
- loc = 1;
- for ringNum = 1:3 %adds absolute value of tilt to each segment in the position they are added.
-     for seg = (loc):(loc+ringNum*6-1)
-         initial(seg,1:2) = (1*2*pi)/(ringNum*6);
-     end
-     loc = (loc+ringNum*6);
- end
-
-segs = ones(1,36);
-count = 1;
- for ringNum = 1:3
-     crow = ringNum * inputs.hexSep;
-     ccol = 0;
-     t = atan2(crow,ccol);
-     t = round(t,3);
-     
-     if(segs(count) == 1)
-         %Uncomment below to use analytical solution / Comment out the 3
-         %lines below if using a seed
-         initial(count,1) = initial(count,1) * -sin(t);
-         initial(count,2) = initial(count,2) * cos(t);
-         initial(count,3) = t/(2*pi);
-         
-         [inputs.hexAmpConst(:,:,count), inputs.hexPhzConst(:,:,count)] = generateHexConstants(crow, ccol, inputs.numRings, inputs.apDia0, inputs.wGap, zeros(inputs.N));
-         
-     end
-
-     count = count + 1;
-     for face = 1:6
-         step_dir = pi/6*(2*face+5);
-         steprow = inputs.hexSep*sin(step_dir);
-         stepcol = inputs.hexSep*cos(step_dir);
-         stepnum = 1;
-         
-         while(stepnum <= ringNum && count <= 36)
-             crow = crow + steprow;
-             ccol = ccol + stepcol;
-             
-             t = atan2(crow,ccol);
-             t = round(t,3);
-             
-             if(face==6 && stepnum ==ringNum)
-                 disp('finished ring');
-             else
-                 if(segs(count) == 1)
-                    %Uncomment below to use analytical solution / Comment
-                    %out the 3 lines below if using a seed
-                    initial(count,1) = initial(count,1) * -sin(t);
-                    initial(count,2) = initial(count,2) * cos(t);
-                    initial(count,3) = t/(2*pi);
-                    
-                    [inputs.hexAmpConst(:,:,count), inputs.hexPhzConst(:,:,count)] = generateHexConstants(crow, ccol, inputs.numRings, inputs.apDia0, inputs.wGap, zeros(inputs.N));
-
-                 end
-             count = count + 1;
-             end
-             stepnum = stepnum + 1;
-         end
-     end
- end
-
+% hexFlatDiam = (inPar.apDia0-3*2*inPar.wGap)/(2*3+1);
+% inPar.hexSep = hexFlatDiam + inPar.wGap;
+% 
+% inPar.hexAmpConst = NaN(inPar.N, inPar.N, 36);
+% inPar.hexPhzConst = NaN(inPar.N, inPar.N, 36);
+% hexWedgeConst = NaN(inPar.N,inPar.N,36);
+% 
+% initial = NaN(36,3); %xtilt, ytilt, piston
+% 
+% 
+%  loc = 1;
+%  for ringNum = 1:3 %adds absolute value of tilt to each segment in the position they are added.
+%      for seg = (loc):(loc+ringNum*6-1)
+%          initial(seg,1:2) = (1*2*pi)/(ringNum*6);
+%      end
+%      loc = (loc+ringNum*6);
+%  end
+% 
+% segs = ones(1,36);
+% count = 1;
+%  for ringNum = 1:3
+%      crow = ringNum * inPar.hexSep;
+%      ccol = 0;
+%      t = atan2(crow,ccol);
+%      t = round(t,3);
+%      
+%      if(segs(count) == 1)
+%          %Uncomment below to use analytical solution / Comment out the 3
+%          %lines below if using a seed
+%          initial(count,1) = initial(count,1) * -sin(t);
+%          initial(count,2) = initial(count,2) * cos(t);
+%          initial(count,3) = t/(2*pi);
+%          
+%          [inPar.hexAmpConst(:,:,count), inPar.hexPhzConst(:,:,count)] = generateHexConstants(crow, ccol, inPar.numRings, inPar.apDia0, inPar.wGap, zeros(inPar.N));
+%          
+%      end
+% 
+%      count = count + 1;
+%      for face = 1:6
+%          step_dir = pi/6*(2*face+5);
+%          steprow = inPar.hexSep*sin(step_dir);
+%          stepcol = inPar.hexSep*cos(step_dir);
+%          stepnum = 1;
+%          
+%          while(stepnum <= ringNum && count <= 36)
+%              crow = crow + steprow;
+%              ccol = ccol + stepcol;
+%              
+%              t = atan2(crow,ccol);
+%              t = round(t,3);
+%              
+%              if(face==6 && stepnum ==ringNum)
+%                  disp('finished ring');
+%              else
+%                  if(segs(count) == 1)
+%                     %Uncomment below to use analytical solution / Comment
+%                     %out the 3 lines below if using a seed
+%                     initial(count,1) = initial(count,1) * -sin(t);
+%                     initial(count,2) = initial(count,2) * cos(t);
+%                     initial(count,3) = t/(2*pi);
+%                     
+%                     %consider third output that is all 5 different wedge
+%                     %effects
+%                     [inPar.hexAmpConst(:,:,count), inPar.hexPhzConst(:,:,count)] = generateHexConstants(crow, ccol, inPar.numRings, inPar.apDia0, inPar.wGap, zeros(inPar.N));
+% 
+%                  end
+%              count = count + 1;
+%              end
+%              stepnum = stepnum + 1;
+%          end
+%      end
+%  end
+ 
 %% Create array with pupil function
 
-PUPIL = makeKeckPupil(2*inputs.apRad, inputs.N );
+PUPIL = makeKeckPupil(2*inPar.apRad, inPar.N );
 [normI, totalPower0] = getNormalization(PUPIL);% Normalization factors
-inputs.lambdaOverD = inputs.N/inputs.apRad/2; % lam/D in units of samples in the image plane
+inPar.lambdaOverD = inPar.N/inPar.apRad/2; % lam/D in units of samples in the image plane
 
  figure(1)
- imagesc(xvals/inputs.apRad,yvals/inputs.apRad,PUPIL);
+ imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,PUPIL);
  axis image; 
  axis([-1 1 -1 1]);
  title('Pupil');
@@ -130,49 +134,42 @@ inputs.lambdaOverD = inputs.N/inputs.apRad/2; % lam/D in units of samples in the
 
  addpath(['..' filesep '..' filesep 'falco-matlab' filesep 'lib' filesep 'utils']);
   %-- Decrease matrix size in pupil plane to reduce runtime
- inputs.PUP_CRP_SZ = round(2.1*inputs.apRad);
- inputs.hexAmpConst = pad_crop(inputs.hexAmpConst,inputs.PUP_CRP_SZ);
- inputs.hexPhzConst = pad_crop(inputs.hexPhzConst,inputs.PUP_CRP_SZ);
+%  inputs.PUP_CRP_SZ = round(2.1*inputs.apRad);
+%  inputs.hexAmpConst = pad_crop(inputs.hexAmpConst,inputs.PUP_CRP_SZ);
+%  inputs.hexPhzConst = pad_crop(inputs.hexPhzConst,inputs.PUP_CRP_SZ);
 %% Define pupil field
 
 %-- Load a pregenerated seed below
 %initial = load('exampleFile.mat','optimum');
 %disp(optSeed);
 
-phz = angle(makeKeckPupilInputs( inputs, initial));
+phz = generateVortexMaskKeckPrimary(inPar);%angle(makeKeckPupilInputs( inputs, initial));
 %phz(:,:,ch) = angle(makeKeckPupilPhz(inputs.apDia0, inputs.N, inputs.charge));
 %phz = angle(makeKeckPupilPhase(2*apRad,N,chargeC));
 %phz2 = angle(makeKeckPupilField(2*apRad,N));
 
 %Inside this loop, compute wavelength dependent phz offset using wedge fn
 figure(2);
-for ch = 1:inputs.numWavelengths
+for ch = 1:inPar.numWavelengths
     
-%     if ch ~= 3
-%         phzw = phz + getWedgeOffset(3.53,inputs.lambdas(ch));
-%     else
-%         phzw = phz;
-%     end
+    Epup(:,:,ch) = exp(1i*phz*inPar.lambda0/inPar.lambdas(ch)).*PUPIL;
     
-    Epup(:,:,ch) = exp(1i*phz*inputs.lambda0/inputs.lambdas(ch)).*PUPIL;
-    
-    subplot(1,inputs.numWavelengths,ch);
-    imagesc(xvals/inputs.apRad,yvals/inputs.apRad,angle(Epup(:,:,ch)));
+    subplot(1,inPar.numWavelengths,ch);
+    imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,angle(Epup(:,:,ch)));
     axis image; 
     axis xy;
     axis([-1 1 -1 1]);
-    title(['Phase at ',num2str(inputs.lambdas(ch)*1e9),'nm']);
+    title(['Phase at ',num2str(inPar.lambdas(ch)*1e9),'nm']);
     colorbar; 
     colormap(hsv(256));
-   
 end
 drawnow;
 
 %% Get broadband PSF
-iPSF_BB = getPSF(Epup,inputs.lambda0,inputs.lambdas,normI,coords);
+iPSF_BB = getPSF(Epup,inPar.lambda0,inPar.lambdas,normI,coords);
 
 figure(3)
-imagesc(xvals/inputs.lambdaOverD,yvals/inputs.lambdaOverD,iPSF_BB);
+imagesc(inPar.xvals/inPar.lambdaOverD,inPar.yvals/inPar.lambdaOverD,iPSF_BB);
 axis image; 
 axis([-2 2 -2 2]);
 title('broadband PSF w/o vortex');
@@ -189,18 +186,18 @@ fiber_props.core_rad = 5.5e-6;% Core radius [um]
 fiber_props.n_core = 1.4436; %1.4571; core index (interpolated from linear fit to 3 points)
 fiber_props.n_clad = 1.4381; %1.4558; cladding index (interpolated from linear fit to 3 points)
 fiber_props.type = 'bessel';
-Fnum = getMFD(fiber_props,inputs.lambda0)/(inputs.lambda0*1.4); % focal ratio of the beam at the fiber
+Fnum = getMFD(fiber_props,inPar.lambda0)/(inPar.lambda0*1.4); % focal ratio of the beam at the fiber
 
-eta_maps = generateCouplingMap_polychromatic( Epup, fiber_props, inputs.lambda0, Fnum, inputs.lambdas, totalPower0, inputs.lambdaOverD, 3*inputs.lambdaOverD, coords);
+eta_maps = generateCouplingMap_polychromatic( Epup, fiber_props, inPar.lambda0, Fnum, inPar.lambdas, totalPower0, inPar.lambdaOverD, 3*inPar.lambdaOverD, coords);
 
-figure(6);
-for ch = 1:inputs.numWavelengths
-    subplot(1,inputs.numWavelengths,ch);
-    imagesc(xvals/inputs.lambdaOverD,yvals/inputs.lambdaOverD,log10(eta_maps(:,:,ch)));
+figure(4);
+for ch = 1:inPar.numWavelengths
+    subplot(1,inPar.numWavelengths,ch);
+    imagesc(inPar.xvals/inPar.lambdaOverD,inPar.yvals/inPar.lambdaOverD,log10(eta_maps(:,:,ch)));
     axis image; 
     axis([-2 2 -2 2]);
     caxis([-3 -0.5])
-    title(['\eta at ',num2str(inputs.lambdas(ch)*1e9),'nm']);
+    title(['\eta at ',num2str(inPar.lambdas(ch)*1e9),'nm']);
     colorbar;
     colormap(gray(256));
 end
@@ -214,68 +211,68 @@ end
 % 
 %-- Finds the radius of the centroid to crop the image to depending on the maximum eta in 1 slice
 %   of eta_maps(:,:,ch)
-Xshift = zeros(inputs.numWavelengths,1);
-Yshift = zeros(inputs.numWavelengths,1);
-etas = zeros(inputs.numWavelengths, 1);
+Xshift = zeros(inPar.numWavelengths,1);
+Yshift = zeros(inPar.numWavelengths,1);
+etas = zeros(inPar.numWavelengths, 1);
 
-for ch = 1:inputs.numWavelengths 
+for ch = 1:inPar.numWavelengths 
     map = eta_maps(:,:,ch); %one slice of the eta_maps cube
     map_max = max(map,[],'all'); %the maximum value in cmap
     [max_ind(1),max_ind(2)] = find(map_max==map,1); %linear coordinates of max value
-    max_rho = sqrt(((inputs.N/2+1)-max_ind(1))^2 + ((inputs.N/2+1)-max_ind(2))^2);
+    max_rho = sqrt(((inPar.N/2+1)-max_ind(1))^2 + ((inPar.N/2+1)-max_ind(2))^2);
     
     crp = 2*max_rho; %The length of one side of the cube to crop the image to
 
     cmap = map(end/2+1-floor(crp/2):end/2+1+floor(crp/2),end/2+1-floor(crp/2):end/2+1+floor(crp/2)); %the centroid
     cmap_min = min(cmap,[],'all'); %minimum value in the centroid
     [min_ind(1),min_ind(2)] = find(cmap_min==cmap); %indices of minimum value in the centroid
-    min_ind = min_ind + (inputs.N/2-floor(crp/2)); %adjust min values to reflect position in map, not cmap
+    min_ind = min_ind + (inPar.N/2-floor(crp/2)); %adjust min values to reflect position in map, not cmap
    
-    Xshift(ch) = inputs.N/2-min_ind(2); %x value is wavelength, y value is offset
-    Yshift(ch) = inputs.N/2-min_ind(1);%^
+    Xshift(ch) = inPar.N/2-min_ind(2); %x value is wavelength, y value is offset
+    Yshift(ch) = inPar.N/2-min_ind(1);%^
     
     etas(ch) = cmap_min;
 end
 
 %-- Null shift plots for X, Y, and the trendlines that result
-figure(7);
+figure(5);
 subplot(2,2,1);
-plot(inputs.lambdas/inputs.lambda0,Xshift/inputs.lambdaOverD, '-o', 'Color', 'r');
+plot(inPar.lambdas/inPar.lambda0,Xshift/inPar.lambdaOverD, '-o', 'Color', 'r');
 title('Xshift');
 subplot(2,2,2);
-plot(inputs.lambdas/inputs.lambda0,Yshift/inputs.lambdaOverD, '-o', 'Color', 'b');
+plot(inPar.lambdas/inPar.lambda0,Yshift/inPar.lambdaOverD, '-o', 'Color', 'b');
 title('Yshift');
 
-px = polyfit(inputs.lambdas/inputs.lambda0,Xshift'/inputs.lambdaOverD,1);
-pxy = polyval(px,inputs.lambdas/inputs.lambda0);
+px = polyfit(inPar.lambdas/inPar.lambda0,Xshift'/inPar.lambdaOverD,1);
+pxy = polyval(px,inPar.lambdas/inPar.lambda0);
 subplot(2,2,3);
-plot(inputs.lambdas/inputs.lambda0,pxy,'-o','Color','m')
+plot(inPar.lambdas/inPar.lambda0,pxy,'-o','Color','m')
 title('X Offset Trend')
 txt = ['p value: ' num2str(px)];
-text(mean(inputs.lambdas/inputs.lambda0),mean(pxy),txt);
+text(mean(inPar.lambdas/inPar.lambda0),mean(pxy),txt);
 
-py = polyfit(inputs.lambdas/inputs.lambda0,Yshift'/inputs.lambdaOverD,1);
-pyy = polyval(py,inputs.lambdas/inputs.lambda0);
+py_1 = polyfit(inPar.lambdas/inPar.lambda0,Yshift'/inPar.lambdaOverD,1);
+pyy = polyval(py_1,inPar.lambdas/inPar.lambda0);
 subplot(2,2,4);
-plot(inputs.lambdas/inputs.lambda0,pyy,'-o','Color','g');
+plot(inPar.lambdas/inPar.lambda0,pyy,'-o','Color','g');
 title('Y Offset Trend')
-txt = ['p value: ' num2str(py)];
-text(mean(inputs.lambdas/inputs.lambda0),mean(px),txt);
+txt = ['p value: ' num2str(py_1)];
+text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
 
 %-- Null value vs wavelength offset from central wavelength
-figure(8);
+figure(6);
 subplot(1,1,1);
-semilogy(inputs.lambdas/inputs.lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
+semilogy(inPar.lambdas/inPar.lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
 title('Null Value vs \lambda/\lambda0')
 xlabel('\lambda/\lambda0')
 ylabel('\eta')
 grid on
 
 %-- Actual positional offset of null for x and y overlayed
-figure(9);
-plot(inputs.lambdas/inputs.lambda0,Xshift/inputs.lambdaOverD, '-o', 'Color', 'r');
+figure(7);
+plot(inPar.lambdas/inPar.lambda0,Xshift/inPar.lambdaOverD, '-o', 'Color', 'r');
 hold on
-plot(inputs.lambdas/inputs.lambda0,Yshift/inputs.lambdaOverD, '-o', 'Color', 'b');
+plot(inPar.lambdas/inPar.lambda0,Yshift/inPar.lambdaOverD, '-o', 'Color', 'b');
 legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
 title('Null Movement')
 xlabel('\lambda/\lambda_0')
@@ -283,19 +280,15 @@ ylabel('Null Shift [\lambda/D]')
 grid on
 
 %-- Overlay of trends in x and y null positional offset
-figure(12);
-plot(inputs.lambdas/inputs.lambda0,pxy,'-o','Color','r');
+figure(8);
+plot(inPar.lambdas/inPar.lambda0,pxy,'-o','Color','r');
 hold on
-plot(inputs.lambdas/inputs.lambda0,pyy,'-o','Color','b');
+plot(inPar.lambdas/inPar.lambda0,pyy,'-o','Color','b');
 legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
 title('Null Movement')
 xlabel('\lambda/\lambda_0')
 ylabel('Null Shift [\lambda/D]')
-txt = ['y trend p value: ' num2str(py) newline 'x trend p value: ' num2str(px)];
-text(mean(inputs.lambdas/inputs.lambda0),mean(px),txt);
+txt = ['y trend p value: ' num2str(py_1) newline 'x trend p value: ' num2str(px)];
+text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
 grid on
-
-
-
-
 
