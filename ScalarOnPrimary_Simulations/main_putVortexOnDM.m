@@ -127,14 +127,12 @@ sphz = pad_crop(sphz,2048);
 El = exp(1i*4*pi*largeDMsurf/wvl);
 lphz = angle(El);
 
-
-
 figure();
 imagesc(sphz); 
 axis image; 
 colorbar;
 colormap(hsv);
 set(gca,'ydir','normal')
-title('Small DMsurf array Phase (radians)')
+title('DMsurf array Phase (radians)')
 caxis([-pi pi])
 

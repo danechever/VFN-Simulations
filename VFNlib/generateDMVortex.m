@@ -7,8 +7,8 @@ setPaths;
 dmConfig_BMCkiloDM; 
 
 %%----- beam parameters 
-Nbeam = 256;% Number of samples across the beam 
-Narr = 256; % Number of samples across the array  
+Nbeam = 1016;% Number of samples across the beam 
+Narr = 1016; % Number of samples across the array  
 NactsPerBeam = 30; % Number of actuators per beam diameter 
 
 wvl = 2e-6; % Wavelength (m)
@@ -58,6 +58,6 @@ dm.V = reshape(soln,[dm.Nact,dm.Nact]);% Reshapes the voltages into 2D array
 DMsurf = falco_gen_dm_surf(dm, dm.dx, Narr);% Generate the DM surface 
 
 E = exp(1i*4*pi*DMsurf/wvl);
-E = pad_crop(E, 2048);
+E = pad_crop(E, 1024);
 
 dmVortex = angle(E);

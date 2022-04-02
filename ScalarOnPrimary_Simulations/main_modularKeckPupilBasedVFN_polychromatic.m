@@ -7,8 +7,15 @@
 
 clear; close all;
 addpath(['..' filesep 'VFNlib']);
+py.importlib.import_module('sellmeir1');
+py.importlib.import_module('triple_prism');
+load pyyo;
+load oldetas;
+sellmeir1coeffs;
+%% Input parameters
 
-%% Input parameters 
+inPar.pyyCopy = pyyCopy;
+inPar.etasCopy = etasCopy;
 
 % Define sampling info
 inPar.N = 2^12; % Size of computational grid (NxN samples) 
@@ -19,8 +26,9 @@ inPar.keckD = 10.949; %Meters
 % Define wavelength info
 inPar.lambda0 = 2.2e-6; %central wavelength
 inPar.fracBW = 0.1818; %\Delta\lambda/\lambda
-inPar.numWavelengths = 41;% number of discrete wavelengths 
+inPar.numWavelengths = 5;% number of discrete wavelengths 
 inPar.lambdas = getWavelengthVec(inPar.lambda0,inPar.fracBW,inPar.numWavelengths);% array of wavelengths (meters)
+inPar.lam0OverD = inPar.lambdas(ceil(inPar.numWavelengths / 2)) / inPar.keckD;
 
 %Define charge of the vortex mask at each wavelength
 %charge = ones(1,numWavelengths); % achromatic
@@ -38,9 +46,40 @@ inPar.numRings = 3;
 inPar.wGap = 25.4/10916*inPar.apDia0/2;
 
 %Wedge Data
-inPar.p = 1.2026;
+%inPar.lin_offset = py_1Copy;
+wType = 'ADC__';
+
+inPar.p = 1.1001;%inPar.lin_offset(1);%1.1404;
 inPar.wedge_mat = 'CaF2';
-wedge_angle = atan((inPar.p*inPar.lambda0)/(inPar.keckD*(getRefractiveIndex(inPar.wedge_mat ,1e6*inPar.lambda0) - 1)));
+wedge_angle = atan(890.16*(inPar.p*inPar.lambda0)/(inPar.keckD*(getRefractiveIndex(inPar.wedge_mat ,1e6*inPar.lambda0) - 1)));
+
+%ADC Wedge Data
+wedge_ADC_1 = 'BaF2';
+wedge_ADC_2 = 'CaF2';
+wedge_ADC_3 = 'ZnSe';
+
+% inPar.wedge_ADC = 0.5 * pi/180; %Thorlabs 30 arcminute CaF2 wedge
+% inPar.n1_ADC = getRefractiveIndex(wedge_ADC_1, 1e6*inPar.lambda0);
+% inPar.n2_ADC = getRefractiveIndex(wedge_ADC_2, 1e6*inPar.lambda0);
+% inPar.n3_ADC = getRefractiveIndex(wedge_ADC_3, 1e6*inPar.lambda0);
+
+inPar.phi1_ADC = 7.0516 * pi/180;
+inPar.phi2_ADC = 3.8050 * pi/180;
+inPar.phi3_ADC = 1.1465 * pi/180;
+
+wvs = py.numpy.array(1e6*inPar.lambdas);
+inPar.n0 = 0;
+inPar.n1 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, baf2_args(1,:),baf2_args(2,:),baf2_args(3,:),baf2_args(4,:),baf2_args(5,:),baf2_args(6,:));
+inPar.n2 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, caf2_args(1,:),caf2_args(2,:),caf2_args(3,:),caf2_args(4,:),caf2_args(5,:),caf2_args(6,:));
+inPar.n3 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, znse_args(1,:),znse_args(2,:),znse_args(3,:),znse_args(4,:),znse_args(5,:),znse_args(6,:));
+
+% inPar.clocking = -88.1818;%-86.3938;%-179.976/2;
+inPar.clocking = deg2rad(76.3636);
+
+inPar.tilt1 = 0;
+
+% Provide path where the DM Basis file is located
+dmBasisPath = '/media/Data_Drive/VFN/ScalarOnPrimaryData/';
 
 %% Generate the coordinate system
 
@@ -93,8 +132,27 @@ drawnow;
 %     colormap(hsv(256));
 % end
 
+%% Pupil Field and vortex mask Scalar Phase plate
+
+% EPM = generateVortexMask( charge, coords, [offsetX offsetY] );
+% 
+% central_band_index = ceil(numWavelengths/2);
+% 
+% figure(4)
+% for ch = 1:numWavelengths
+%     subplot(1,numWavelengths,ch);
+%     imagesc(xvals/apRad,yvals/apRad,angle(EPM(:,:,ch).*Epup(:,:,ch)));
+%     axis image; 
+%     axis([-1 1 -1 1]);
+%     title(['Pupil phase at ', num2str(lambdas(ch)*1e9) 'nm']);
+%     colorbar;
+%     colormap(hsv(256));
+% end
+% drawnow;
+
 %% Define Pupil Field with Vortex Mask
 phz = generateVortexMaskKeckPrimary(inPar);
+%phz = generateDMVortex(dmBasisPath);
 
 figure(2);
 for ch = 1:inPar.numWavelengths
@@ -115,54 +173,133 @@ drawnow;
 %% Apply Wedge Effects
 
 figure(3);
+if(wType == 'ADC__')
+    inPar.lam0OverD_meters = inPar.lambda0/inPar.keckD;
+    wphz = generateWedgePlate(inPar,wedge_angle,inPar.lambdas(ceil(inPar.numWavelengths/2)),'ADC__');
+    
+    for ch =1:inPar.numWavelengths
+                 
+        phzW = phz - wphz(:,:,ch);%phz + wphz(ch);
+    
+        %Epup(:,:,ch) = exp(1i*phz*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+        Epupw(:,:,ch) = exp(1i*wphz(:,:,ch)*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+        Epup_Wedge(:,:,ch) = exp(1i*phzW*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+    
+        subplot(1,inPar.numWavelengths,ch);
+        imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,angle(Epupw(:,:,ch)));
+        axis image; 
+        axis xy;
+        axis([-1 1 -1 1]);
+        title(['Phase at ',num2str(inPar.lambdas(ch)*1e9),'nm']);
+        colorbar; 
+        colormap(hsv(256));
+    end
+elseif(wType == 'wedge')
+    
+    lam0OverD_meters = inPar.lambda0/inPar.keckD;
+    disp(pyyCopy * lam0OverD_meters);
+
+    for ch = 1:inPar.numWavelengths
+    
+        inPar.lam0OverD_meters = inPar.lambda0/inPar.keckD;
+    
+        %Requisite difference in phase computed here
+        wphz = generateWedgePlate(inPar,wedge_angle,inPar.lambdas(ch),'wedge');
+    
+        phzW = phz - wphz;
+    
+        %Epup(:,:,ch) = exp(1i*phz*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+        Epupw(:,:,ch) = exp(1i*wphz*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+        Epup_Wedge(:,:,ch) = exp(1i*phzW*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+    
+        subplot(1,inPar.numWavelengths,ch);
+        imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,angle(Epupw(:,:,ch)));
+        axis image; 
+        axis xy;
+        axis([-1 1 -1 1]);
+        title(['Phase at ',num2str(inPar.lambdas(ch)*1e9),'nm']);
+        colorbar; 
+        colormap(hsv(256));
+    end
+end
+    
+% else
+%     inPar.lam0OverD_rad = inPar.lambda0/inPar.keckD;
+%     wphz = generateWedgePlate(inPar,wedge_angle,inPar.lambdas(ceil(inPar.numWavelengths/2)),'ADC__');
+%     
+%     for ch =1:inPar.numWavelengths
+%                  
+%          phzW = phz - wphz(ch);
+%     
+%         %Epup(:,:,ch) = exp(1i*phz*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+%         %Epupw(:,:,ch) = exp(1i*wphz*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+%         Epup_Wedge(:,:,ch) = exp(1i*phzW*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+%     
+%         subplot(1,inPar.numWavelengths,ch);
+%         imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,angle(Epup_Wedge(:,:,ch)));
+%         axis image; 
+%         axis xy;
+%         axis([-1 1 -1 1]);
+%         title(['Phase at ',num2str(inPar.lambdas(ch)*1e9),'nm']);
+%         colorbar; 
+%         colormap(hsv(256));
+%     end
+% end
+
+
+
+
+% inPar.lam0OverD_rad = inPar.lambda0/inPar.keckD;
+    
+%Requisite difference in phase computed here
+% wphz = generateWedgePlate(inPar,wedge_angle,inPar.lambdas(ch),'wedge');
+% 
+% phzW = phz - wphz;
+
+%Epup(:,:,ch) = exp(1i*phz*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+% Epupw(:,:,ch) = exp(1i*wphz*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+% Epup_Wedge(:,:,ch) = exp(1i*phzW*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
+    
+% subplot(1,inPar.numWavelengths,ch);
+% imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,angle(Epupw(:,:,ch)));
+% axis image; 
+% axis xy;
+% axis([-1 1 -1 1]);
+% title(['Phase at ',num2str(inPar.lambdas(ch)*1e9),'nm']);
+% colorbar; 
+% colormap(hsv(256));
+
+%% Get wavelength specific PSF 
+%iPSF_BB = getPSF(Epups,inPar.lambda0,inPar.lambdas,normI,coords);
+%iPSF_BB = mean(iPSF_BB, 3);
+
+PSFw = getallPSF(Epup_Wedge,inPar.lambda0,inPar.lambdas,normI,coords);
+
+figure(40)
 for ch = 1:inPar.numWavelengths
     
-    inPar.lam0OverD_rad = inPar.lambda0/inPar.keckD;
-
-    wphz = generateWedgePlate(inPar,wedge_angle,inPar.lambdas(ch));
-    
-    phzW = phz - wphz;
-    
-    Epup(:,:,ch) = exp(1i*phz*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
-    Epupw(:,:,ch) = exp(1i*wphz*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
-    Epups(:,:,ch) = exp(1i*phzW*inPar.lambda0/inPar.lambdas(ch)).*inPar.PUPIL;
-    
     subplot(1,inPar.numWavelengths,ch);
-    imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,angle(Epupw(:,:,ch)));
-    axis image; 
+    imagesc(inPar.xvals/inPar.lambdaOverD,inPar.yvals/inPar.lambdaOverD,PSFw(:,:,ch));
+    axis image;
     axis xy;
-    axis([-1 1 -1 1]);
-    title(['Phase at ',num2str(inPar.lambdas(ch)*1e9),'nm']);
-    colorbar; 
-    colormap(hsv(256));
-    
+    axis([-2 2 -2 2]);
+    title(['PSF at ' num2str(inPar.lambdas(ch)*1e9) 'nm']);
+    colorbar;%caxis([-3 0])
+    colormap(parula(256));
 end
+drawnow;
 
-%% Get wavelength specific PSF WEDGE
-% PSFw = getPSF(Epupw,inPar.lambda0,inPar.lambdas,normI,coords);
-% 
-% figure(20)
-% for ch = 1:inPar.numWavelengths
-%     subplot(1,inPar.numWavelengths,ch);
-%     imagesc(inPar.xvals/inPar.lambdaOverD,inPar.yvals/inPar.lambdaOverD,PSFw(:,:,ch));
-%     axis image;
-%     axis([-2 2 -2 2]);
-%     title('lambda specific PSF wedge');
-%     colorbar;%caxis([-3 0])
-%     colormap(parula(256));
-% end
-    
 %% Get broadband PSF / Get Wavelength specific PSF
 %iPSF_BB = getPSF(Epups,inPar.lambda0,inPar.lambdas,normI,coords);
 %iPSF_BB = mean(iPSF_BB, 3);
 
-PSF = getPSF(Epups,inPar.lambda0,inPar.lambdas,normI,coords);
+PSF = getPSF(Epup_Wedge,inPar.lambda0,inPar.lambdas,normI,coords);
 
 figure(4)
 imagesc(inPar.xvals/inPar.lambdaOverD,inPar.yvals/inPar.lambdaOverD,PSF);
 axis image; 
 axis([-2 2 -2 2]);
-title('broadband PSF w/ vortex & wedge');
+title('Broadband PSF w/ vortex & wedge');
 colorbar;%caxis([-3 0])
 colormap(parula(256));
 drawnow;
@@ -190,13 +327,13 @@ fiber_props.n_clad = 1.4381; %1.4558; cladding index (interpolated from linear f
 fiber_props.type = 'bessel';
 Fnum = getMFD(fiber_props,inPar.lambda0)/(inPar.lambda0*1.4); % focal ratio of the beam at the fiber
 
-eta_maps = generateCouplingMap_polychromatic( Epups, fiber_props, inPar.lambda0, Fnum, inPar.lambdas, totalPower0, inPar.lambdaOverD, 3*inPar.lambdaOverD, coords);
-eta_maps_NOWEDGE = generateCouplingMap_polychromatic( Epup, fiber_props, inPar.lambda0, Fnum, inPar.lambdas, totalPower0, inPar.lambdaOverD, 3*inPar.lambdaOverD, coords);
+eta_map_Wedge = generateCouplingMap_polychromatic(Epup_Wedge, fiber_props, inPar.lambda0, Fnum, inPar.lambdas, totalPower0, inPar.lambdaOverD, 3*inPar.lambdaOverD, coords);
+%eta_maps_NOWEDGE = generateCouplingMap_polychromatic( Epup, fiber_props, inPar.lambda0, Fnum, inPar.lambdas, totalPower0, inPar.lambdaOverD, 3*inPar.lambdaOverD, coords);
 
 figure(5);
 for ch = 1:inPar.numWavelengths
     subplot(1,inPar.numWavelengths,ch);
-    imagesc(inPar.xvals/inPar.lambdaOverD,inPar.yvals/inPar.lambdaOverD,log10(eta_maps(:,:,ch)));
+    imagesc(inPar.xvals/inPar.lambdaOverD,inPar.yvals/inPar.lambdaOverD,log10(eta_map_Wedge(:,:,ch)));
     axis image; 
     axis([-2 2 -2 2]);
     caxis([-3 -0.5])
@@ -216,10 +353,10 @@ end
 %   of eta_maps(:,:,ch)
 Xshift = zeros(inPar.numWavelengths,1);
 Yshift = zeros(inPar.numWavelengths,1);
-etas = zeros(inPar.numWavelengths, 1);
+etaw = zeros(inPar.numWavelengths, 1);
 
 for ch = 1:inPar.numWavelengths 
-    map = eta_maps(:,:,ch); %one slice of the eta_maps cube
+    map = eta_map_Wedge(:,:,ch); %one slice of the eta_maps cube
     map_max = max(map,[],'all'); %the maximum value in cmap
     [max_ind(1),max_ind(2)] = find(map_max==map,1); %linear coordinates of max value
     max_rho = sqrt(((inPar.N/2+1)-max_ind(1))^2 + ((inPar.N/2+1)-max_ind(2))^2);
@@ -231,33 +368,33 @@ for ch = 1:inPar.numWavelengths
     [min_ind(1),min_ind(2)] = find(cmap_min==cmap); %indices of minimum value in the centroid
     min_ind = min_ind + (inPar.N/2-floor(crp/2)); %adjust min values to reflect position in map, not cmap
    
-    Xshift(ch) = inPar.N/2-min_ind(2); %x value is wavelength, y value is offset
-    Yshift(ch) = inPar.N/2-min_ind(1);%^
+    Xshift(ch) = inPar.N/2+1-min_ind(2); %x value is wavelength, y value is offset
+    Yshift(ch) = inPar.N/2+1-min_ind(1);%^
     
-    etas(ch) = cmap_min;
+    etaw(ch) = cmap_min;
 end
 
-Xshiftnw = zeros(inPar.numWavelengths,1);
-Yshiftnw = zeros(inPar.numWavelengths,1);
-etanw = zeros(inPar.numWavelengths, 1);
-for ch = 1:inPar.numWavelengths 
-    mapnw = eta_maps(:,:,ch); %one slice of the eta_maps cube
-    map_maxnw = max(mapnw,[],'all'); %the maximum value in cmap
-    [max_indnw(1),max_indnw(2)] = find(map_maxnw==mapnw,1); %linear coordinates of max value
-    max_rhonw = sqrt(((inPar.N/2+1)-max_indnw(1))^2 + ((inPar.N/2+1)-max_indnw(2))^2);
-    
-    crpnw = 2*max_rhonw; %The length of one side of the cube to crop the image to
-
-    cmapnw = map(end/2+1-floor(crpnw/2):end/2+1+floor(crpnw/2),end/2+1-floor(crpnw/2):end/2+1+floor(crpnw/2)); %the centroid
-    cmap_minnw = min(cmapnw,[],'all'); %minimum value in the centroid
-    [min_indnw(1),min_indnw(2)] = find(cmap_minnw==cmapnw); %indices of minimum value in the centroid
-    min_indnw = min_indnw + (inPar.N/2-floor(crpnw/2)); %adjust min values to reflect position in map, not cmap
-   
-    Xshiftnw(ch) = inPar.N/2-min_indnw(2); %x value is wavelength, y value is offset
-    Yshiftnw(ch) = inPar.N/2-min_indnw(1);%^
-    
-    etanw(ch) = cmap_minnw;
-end
+% Xshiftnw = zeros(inPar.numWavelengths,1);
+% Yshiftnw = zeros(inPar.numWavelengths,1);
+% etanw = zeros(inPar.numWavelengths, 1);
+% for ch = 1:inPar.numWavelengths 
+%     mapnw = eta_maps_NOWEDGE(:,:,ch); %one slice of the eta_maps cube
+%     map_maxnw = max(mapnw,[],'all'); %the maximum value in cmap
+%     [max_indnw(1),max_indnw(2)] = find(map_maxnw==mapnw,1); %linear coordinates of max value
+%     max_rhonw = sqrt(((inPar.N/2+1)-max_indnw(1))^2 + ((inPar.N/2+1)-max_indnw(2))^2);
+%     
+%     crpnw = 2*max_rhonw; %The length of one side of the cube to crop the image to
+% 
+%     cmapnw = map(end/2+1-floor(crpnw/2):end/2+1+floor(crpnw/2),end/2+1-floor(crpnw/2):end/2+1+floor(crpnw/2)); %the centroid
+%     cmap_minnw = min(cmapnw,[],'all'); %minimum value in the centroid
+%     [min_indnw(1),min_indnw(2)] = find(cmap_minnw==cmapnw); %indices of minimum value in the centroid
+%     min_indnw = min_indnw + (inPar.N/2-floor(crpnw/2)); %adjust min values to reflect position in map, not cmap
+%    
+%     Xshiftnw(ch) = inPar.N/2-min_indnw(2); %x value is wavelength, y value is offset
+%     Yshiftnw(ch) = inPar.N/2-min_indnw(1);%^
+%     
+%     etanw(ch) = cmap_minnw;
+% end
 
 %-- Null shift plots for X, Y, and the trendlines that result
 figure(6);
@@ -288,19 +425,30 @@ text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
 figure(7);
 subplot(1,1,1);
 hold on;
-semilogy(inPar.lambdas/inPar.lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
-semilogy(inPar.lambdas/inPar.lambda0,etanw,'-o','Color','b');
+semilogy(inPar.lambdas/inPar.lambda0,etaw,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
+semilogy(inPar.lambdas/inPar.lambda0,etasCopy,'-o','Color','b');
+legend({'Wedge', 'No Wedge'}, 'Location', 'SouthEast');
 title('Null Value vs \lambda/\lambda0')
 xlabel('\lambda/\lambda0')
 ylabel('\eta')
 grid on
 hold off;
 
+% figure();
+% subplot(1,1,1);
+% hold on;
+% semilogy(inPar.lambdas/inPar.lambda0,etanw,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
+% title('Null Value vs \lambda/\lambda0')
+% xlabel('\lambda/\lambda0')
+% ylabel('\eta')
+% grid on
+% hold off;
+
 %-- Actual positional offset of null for x and y overlayed
 figure(8);
 plot(inPar.lambdas/inPar.lambda0,Xshift/inPar.lambdaOverD, '-o', 'Color', 'r');
 hold on
-plot(inPar.lambdas/inPar.lambda0,Yshift/inPar.lambdaOverD, '-o', 'Color', 'b');
+plot(inPar.lambdas/inPar.lambda0,Yshift/inPar.lambdaOverD, '-x', 'Color', 'b');
 legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
 title('Null Movement')
 xlabel('\lambda/\lambda_0')
@@ -309,14 +457,15 @@ grid on
 
 %-- Overlay of trends in x and y null positional offset
 figure(9);
-plot(inPar.lambdas/inPar.lambda0,pxy,'-o','Color','r');
+plot(inPar.lambdas/inPar.lambda0,pxy,'-x','Color','r');
 hold on
-plot(inPar.lambdas/inPar.lambda0,pyy,'-o','Color','b');
-legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
+plot(inPar.lambdas/inPar.lambda0,pyy,'-o','Color','g');
+plot(inPar.lambdas/inPar.lambda0,pyyCopy,'-o','Color','b');
+legend({'Xshift', 'Yshift with wedge','Yshift without wedge'}, 'Location', 'SouthEast');
 title('Null Movement')
 xlabel('\lambda/\lambda_0')
 ylabel('Null Shift [\lambda/D]')
-txt = ['y trend p value: ' num2str(py_1) newline 'x trend p value: ' num2str(px)];
-text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
+% txt = ['y trend p value: ' num2str(py_1) newline 'x trend p value: ' num2str(px)];
+% text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
 grid on
 

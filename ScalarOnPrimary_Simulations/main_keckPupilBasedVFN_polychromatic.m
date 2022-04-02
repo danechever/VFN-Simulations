@@ -18,8 +18,10 @@ inPar.apDia0 = 2 * inPar.apRad;
 % Define wavelength info
 inPar.lambda0 = 2.2e-6; %central wavelength
 inPar.fracBW = 0.1818; %\Delta\lambda/\lambda
-inPar.numWavelengths = 15;% number of discrete wavelengths 
+inPar.numWavelengths = 5;% number of discrete wavelengths 
 inPar.lambdas = getWavelengthVec(inPar.lambda0,inPar.fracBW,inPar.numWavelengths);% array of wavelengths (meters)
+inPar.keckD = 10.949;
+inPar.lam0OverD = inPar.lambdas(ceil(inPar.numWavelengths / 2)) / inPar.keckD;
 
 %Define charge of the vortex mask at each wavelength
 %charge = ones(1,numWavelengths); % achromatic
@@ -35,6 +37,9 @@ inPar.offsetY = 0;%0.0524*apRad;
 
 inPar.numRings = 3;
 inPar.wGap = 25.4/10916*inPar.apDia0/2;
+
+% Provide path where the DM Basis file is located
+dmBasisPath = '/media/Data_Drive/VFN/ScalarOnPrimaryData/';
 
 %% Generate the coordinate system
 
@@ -122,7 +127,7 @@ PUPIL = makeKeckPupil(2*inPar.apRad, inPar.N );
 [normI, totalPower0] = getNormalization(PUPIL);% Normalization factors
 inPar.lambdaOverD = inPar.N/inPar.apRad/2; % lam/D in units of samples in the image plane
 
- figure(1)
+ figure()
  imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,PUPIL);
  axis image; 
  axis([-1 1 -1 1]);
@@ -143,13 +148,25 @@ inPar.lambdaOverD = inPar.N/inPar.apRad/2; % lam/D in units of samples in the im
 %initial = load('exampleFile.mat','optimum');
 %disp(optSeed);
 
-phz = generateVortexMaskKeckPrimary(inPar);%angle(makeKeckPupilInputs( inputs, initial));
+% phz = generateVortexMaskKeckPrimary(inPar);%angle(makeKeckPupilInputs( inputs, initial));
+
+phz = generateDMVortex(dmBasisPath);
+
+figure();
+imagesc(phz); 
+axis image; 
+colorbar;
+colormap(hsv);
+set(gca,'ydir','normal')
+title('DMsurf array Phase (radians)')
+caxis([-pi pi])
+
 %phz(:,:,ch) = angle(makeKeckPupilPhz(inputs.apDia0, inputs.N, inputs.charge));
 %phz = angle(makeKeckPupilPhase(2*apRad,N,chargeC));
 %phz2 = angle(makeKeckPupilField(2*apRad,N));
 
 %Inside this loop, compute wavelength dependent phz offset using wedge fn
-figure(2);
+figure();
 for ch = 1:inPar.numWavelengths
     
     Epup(:,:,ch) = exp(1i*phz*inPar.lambda0/inPar.lambdas(ch)).*PUPIL;
@@ -165,14 +182,28 @@ for ch = 1:inPar.numWavelengths
 end
 drawnow;
 
+
+%Plot phase pattern for individual wavelengths
+figure()
+Epup(:,:,3) = exp(1i*phz*inPar.lambda0/inPar.lambdas(3)).*PUPIL;
+    
+subplot(1,1,1);
+imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,angle(Epup(:,:,3)));
+axis image; 
+axis xy;
+axis([-1 1 -1 1]);
+title(['Phase at ',num2str(inPar.lambdas(3)*1e9),'nm']);
+colorbar; 
+colormap(hsv(256));
+
 %% Get broadband PSF
 iPSF_BB = getPSF(Epup,inPar.lambda0,inPar.lambdas,normI,coords);
 
-figure(3)
+figure()
 imagesc(inPar.xvals/inPar.lambdaOverD,inPar.yvals/inPar.lambdaOverD,iPSF_BB);
 axis image; 
 axis([-2 2 -2 2]);
-title('broadband PSF w/o vortex');
+title('Broadband PSF w/o Vortex');
 colorbar;%caxis([-3 0])
 colormap(parula(256));
 drawnow;
@@ -190,7 +221,7 @@ Fnum = getMFD(fiber_props,inPar.lambda0)/(inPar.lambda0*1.4); % focal ratio of t
 
 eta_maps = generateCouplingMap_polychromatic( Epup, fiber_props, inPar.lambda0, Fnum, inPar.lambdas, totalPower0, inPar.lambdaOverD, 3*inPar.lambdaOverD, coords);
 
-figure(4);
+figure();
 for ch = 1:inPar.numWavelengths
     subplot(1,inPar.numWavelengths,ch);
     imagesc(inPar.xvals/inPar.lambdaOverD,inPar.yvals/inPar.lambdaOverD,log10(eta_maps(:,:,ch)));
@@ -228,14 +259,14 @@ for ch = 1:inPar.numWavelengths
     [min_ind(1),min_ind(2)] = find(cmap_min==cmap); %indices of minimum value in the centroid
     min_ind = min_ind + (inPar.N/2-floor(crp/2)); %adjust min values to reflect position in map, not cmap
    
-    Xshift(ch) = inPar.N/2-min_ind(2); %x value is wavelength, y value is offset
-    Yshift(ch) = inPar.N/2-min_ind(1);%^
+    Xshift(ch) = inPar.N/2+1-min_ind(2); %x value is wavelength, y value is offset
+    Yshift(ch) = inPar.N/2+1-min_ind(1);%^
     
     etas(ch) = cmap_min;
 end
 
 %-- Null shift plots for X, Y, and the trendlines that result
-figure(5);
+figure();
 subplot(2,2,1);
 plot(inPar.lambdas/inPar.lambda0,Xshift/inPar.lambdaOverD, '-o', 'Color', 'r');
 title('Xshift');
@@ -260,7 +291,7 @@ txt = ['p value: ' num2str(py_1)];
 text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
 
 %-- Null value vs wavelength offset from central wavelength
-figure(6);
+figure();
 subplot(1,1,1);
 semilogy(inPar.lambdas/inPar.lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
 title('Null Value vs \lambda/\lambda0')
@@ -269,7 +300,7 @@ ylabel('\eta')
 grid on
 
 %-- Actual positional offset of null for x and y overlayed
-figure(7);
+figure();
 plot(inPar.lambdas/inPar.lambda0,Xshift/inPar.lambdaOverD, '-o', 'Color', 'r');
 hold on
 plot(inPar.lambdas/inPar.lambda0,Yshift/inPar.lambdaOverD, '-o', 'Color', 'b');
@@ -280,7 +311,7 @@ ylabel('Null Shift [\lambda/D]')
 grid on
 
 %-- Overlay of trends in x and y null positional offset
-figure(8);
+figure();
 plot(inPar.lambdas/inPar.lambda0,pxy,'-o','Color','r');
 hold on
 plot(inPar.lambdas/inPar.lambda0,pyy,'-o','Color','b');
@@ -289,6 +320,6 @@ title('Null Movement')
 xlabel('\lambda/\lambda_0')
 ylabel('Null Shift [\lambda/D]')
 txt = ['y trend p value: ' num2str(py_1) newline 'x trend p value: ' num2str(px)];
-text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
+%text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
 grid on
 

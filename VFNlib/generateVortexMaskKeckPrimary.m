@@ -32,8 +32,8 @@ param.wGap = inputs.wGap;
 %% Generate the coordinate system
 
 %coords = generateCoordinates(Sinf.N);% Creates NxN arrays with coordinates 
-xvals = inputs.xvals;% Helpful for plotting
-yvals = inputs.yvals;
+xvals = inputs.xvals;% Helpful for plotting inputs.xvals
+yvals = inputs.yvals; %inputs.yvals
 
 %% Create matrix with tilt and pistons for the analytical solution, and
 %%generate constant coefficients for phase and amplitude for each hexagonal segment.
@@ -115,10 +115,10 @@ end
  
 %% Create array with pupil function
 addpath(['..' filesep '..' filesep 'falco-matlab' filesep 'lib' filesep 'utils']);
-%-- Decrease matrix size in pupil plane to reduce runtime
-param.PUP_CRP_SZ = round(2.1*param.apRad);
-param.hexAmpConst = pad_crop(param.hexAmpConst,param.PUP_CRP_SZ);
-param.hexPhzConst = pad_crop(param.hexPhzConst,param.PUP_CRP_SZ);
+% -- Decrease matrix size in pupil plane to reduce runtime
+% param.PUP_CRP_SZ = round(2.1*param.apRad);
+% param.hexAmpConst = pad_crop(param.hexAmpConst,param.PUP_CRP_SZ);
+% param.hexPhzConst = pad_crop(param.hexPhzConst,param.PUP_CRP_SZ);
 
 %% Define pupil field
 

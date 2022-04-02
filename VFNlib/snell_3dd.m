@@ -19,4 +19,5 @@ function upvec = snell_3d(uvec, nvec, n1, n2)
     upvec = upvec + eta * uvec;
     
     upvec = upvec./sqrt(sum(upvec.^2,1));
+    
 end

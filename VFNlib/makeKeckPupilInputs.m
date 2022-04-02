@@ -7,7 +7,7 @@ function [optField,circum_diam] = makeKeckPupilInputs( vars, seed )
     hexMirror.wGap = vars.wGap; % gap width in samples
     hexMirror.numRings = vars.numRings;% Number of rings in hexagonally segmented mirror
     
-    hexMirror.Npad = vars.PUP_CRP_SZ; %vars.N;
+    hexMirror.Npad = vars.N ; %PUP_CRP_SZ; %vars.N; Changed when updating to MFT
     central_band_index = ceil(vars.numWavelengths/2);
     hexMirror.charge = vars.charge(central_band_index);
     

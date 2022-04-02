@@ -1,0 +1,102 @@
+clear; close all;
+addpath(['..' filesep 'VFNlib']);
+py.importlib.import_module('sellmeir1');
+py.importlib.import_module('triple_prism');
+load pyyo;
+load oldetas;
+sellmeir1coeffs;
+%% Input parameters
+
+inPar.pyyCopy = pyyCopy;
+inPar.etasCopy = etasCopy;
+
+% Define sampling info
+inPar.N = 2^12; % Size of computational grid (NxN samples) 
+inPar.apRad = 256; % Aperture radius in samples 
+inPar.apDia0 = 2 * inPar.apRad;
+inPar.keckD = 10.949; %Meters
+
+% Define wavelength info
+inPar.lambda0 = 2.2e-6; %central wavelength
+inPar.fracBW = 0.1818; %\Delta\lambda/\lambda
+inPar.numWavelengths = 5;% number of discrete wavelengths 
+inPar.lambdas = getWavelengthVec(inPar.lambda0,inPar.fracBW,inPar.numWavelengths);% array of wavelengths (meters)
+inPar.lam0OverD = inPar.lambdas(ceil(inPar.numWavelengths / 2)) / inPar.keckD;
+
+%Define charge of the vortex mask at each wavelength
+%charge = ones(1,numWavelengths); % achromatic
+inPar.charge = 1*(inPar.lambda0./inPar.lambdas); % simple scalar model
+
+% Define wavefront error at the central wavelength
+inPar.nolls = 4:8;
+inPar.coeffs = 0*[0.01,-0.0099,-0.0095,-0.0008,0.0033];
+
+% Give offsets for the vortex mask
+inPar.offsetX = 0;%0.0952*apRad;
+inPar.offsetY = 0;%0.0524*apRad; 
+
+inPar.numRings = 3;
+inPar.wGap = 25.4/10916*inPar.apDia0/2;
+
+%Wedge Data
+%inPar.lin_offset = py_1Copy;
+wType = 'wedge';
+
+inPar.p = 1.1001;%inPar.lin_offset(1);%1.1404;
+inPar.wedge_mat = 'CaF2';
+wedge_angle = atan(890.16*(inPar.p*inPar.lambda0)/(inPar.keckD*(getRefractiveIndex(inPar.wedge_mat ,1e6*inPar.lambda0) - 1)));
+
+%ADC Wedge Data
+wedge_ADC_1 = 'BaF2';
+wedge_ADC_2 = 'CaF2';
+wedge_ADC_3 = 'ZnSe';
+
+% inPar.wedge_ADC = 0.5 * pi/180; %Thorlabs 30 arcminute CaF2 wedge
+% inPar.n1_ADC = getRefractiveIndex(wedge_ADC_1, 1e6*inPar.lambda0);
+% inPar.n2_ADC = getRefractiveIndex(wedge_ADC_2, 1e6*inPar.lambda0);
+% inPar.n3_ADC = getRefractiveIndex(wedge_ADC_3, 1e6*inPar.lambda0);
+
+inPar.phi1_ADC = 7.0516 * pi/180;
+inPar.phi2_ADC = 3.8050 * pi/180;
+inPar.phi3_ADC = 1.1465 * pi/180;
+
+wvs = py.numpy.array(1e6*inPar.lambdas);
+inPar.n0 = 0;
+inPar.n1 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, baf2_args(1,:),baf2_args(2,:),baf2_args(3,:),baf2_args(4,:),baf2_args(5,:),baf2_args(6,:));
+inPar.n2 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, caf2_args(1,:),caf2_args(2,:),caf2_args(3,:),caf2_args(4,:),caf2_args(5,:),caf2_args(6,:));
+inPar.n3 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, znse_args(1,:),znse_args(2,:),znse_args(3,:),znse_args(4,:),znse_args(5,:),znse_args(6,:));
+
+% inPar.clocking = -88.1818;%-86.3938;%-179.976/2;
+inPar.clocking = deg2rad(76.3636);
+
+inPar.tilt1 = 0;
+
+% Provide path where the DM Basis file is located
+dmBasisPath = '/media/Data_Drive/VFN/ScalarOnPrimaryData/';
+
+%% Generate the coordinate system
+
+coords = generateCoordinates(inPar.N);% Creates NxN arrays with coordinates
+inPar.Ycoords = coords.Y;
+inPar.Xcoords = coords.X;
+inPar.xvals = coords.xvals;% Helpful for plotting
+inPar.yvals = coords.yvals;
+
+%% Create array with pupil function
+
+inPar.PUPIL = makeKeckPupil(2*inPar.apRad, inPar.N );
+[normI, totalPower0] = getNormalization(inPar.PUPIL); % Normalization factors
+inPar.lambdaOverD = inPar.N/inPar.apRad/2; % lam/D in units of samples in the image plane
+% Sinf.PUP_CRP_SZ = round(2.1*Sinf.apRad);
+% Sinf.hexAmpConst = pad_crop(Sinf.hexAmpConst,Sinf.PUP_CRP_SZ);
+% Sinf.hexPhzConst = pad_crop(Sinf.hexPhzConst,Sinf.PUP_CRP_SZ);
+
+figure(1)
+imagesc(inPar.xvals/inPar.apRad,inPar.yvals/inPar.apRad,inPar.PUPIL);
+axis image; 
+axis([-1 1 -1 1]);
+title('Pupil');
+colorbar; 
+colormap(parula(256));
+grid on;
+drawnow;

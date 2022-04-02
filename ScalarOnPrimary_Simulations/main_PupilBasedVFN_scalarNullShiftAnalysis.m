@@ -6,8 +6,8 @@ addpath('VFNlib');
 %% Input parameters 
 
 % Define smapling info
-N = 2^10; % Size of computational grid (NxN samples) 
-apRad = 64; % Aperture radius in samples 
+N = 2^11; % Size of computational grid (NxN samples) 
+apRad = 128; % Aperture radius in samples 
 
 % Define wavelength info
 lambda0 = 2.2e-6; %central wavelength
@@ -40,7 +40,7 @@ PUPIL = makeCircularPupil(apRad, N );
 [normI, totalPower0] = getNormalization(PUPIL);% Normalization factors
 lambdaOverD = N/apRad/2; % lam/D in units of samples in the image plane
 
- figure(1)
+ figure()
  imagesc(xvals/apRad,yvals/apRad,PUPIL);
  axis image; 
  axis([-1 1 -1 1]);
@@ -49,6 +49,23 @@ lambdaOverD = N/apRad/2; % lam/D in units of samples in the image plane
  colormap(parula(256));
  grid on;
  drawnow;
+ 
+ %% Create Keck Pupil
+% KPUPIL = makeKeckPupil(2*apRad, N );
+% [normI, totalPower0] = getNormalization(PUPIL);% Normalization factors
+% lambdaOverD = N/apRad/2; % lam/D in units of samples in the image plane
+% 
+%  figure()
+%  imagesc(xvals/apRad,yvals/apRad,KPUPIL);
+%  axis image; 
+%  axis([-1 1 -1 1]);
+%  title('Pupil');
+%  colorbar; 
+%  colormap(parula(256));
+%  grid on;
+%  drawnow;
+% 
+%  addpath(['..' filesep '..' filesep 'falco-matlab' filesep 'lib' filesep 'utils']);
 
 %% Define pupil field
 
@@ -59,7 +76,7 @@ phz = generateZernike_fromList( nolls, coeffs, PUPIL, apRad, coords);
 %phz = angle(makeKeckPupilPhase(2*apRad,N,chargeC));
 % phz2 = angle(makeKeckPupilField(2*apRad,N));
 
-figure(2);
+figure();
 for ch = 1:numWavelengths
     Epup(:,:,ch) = exp(1i*phz*lambda0/lambdas(ch)).*PUPIL;
     
@@ -79,7 +96,7 @@ drawnow;
 %Get broadband PSF
 iPSF_BB = getPSF(Epup,lambda0,lambdas,normI,coords);
 
-figure(3)
+figure()
 imagesc(xvals/lambdaOverD,yvals/lambdaOverD,iPSF_BB);
 axis image; 
 axis([-2 2 -2 2]);
@@ -94,7 +111,7 @@ EPM = generateVortexMask( charge, coords, [offsetX offsetY] );
 
 central_band_index = ceil(numWavelengths/2);
 
-figure(4)
+figure()
 for ch = 1:numWavelengths
     subplot(1,numWavelengths,ch);
     imagesc(xvals/apRad,yvals/apRad,angle(EPM(:,:,ch).*Epup(:,:,ch)));
@@ -106,15 +123,28 @@ for ch = 1:numWavelengths
 end
 drawnow;
 
+
+%Plot phase pattern for individual wavelengths
+figure()
+subplot(1,1,1);
+imagesc(xvals/apRad,yvals/apRad,angle(EPM(:,:,3).*Epup(:,:,3)));
+axis image; 
+axis([-1 1 -1 1]);
+title(['Pupil phase at ', num2str(lambdas(3)*1e9) 'nm']);
+colorbar;
+colormap(hsv(256));
+
+drawnow;
+
 %% Get PSF with vortex mask
 
 iPSFv_BB = getPSF(Epup.*EPM,lambda0,lambdas,normI,coords);
 
-figure(5)
+figure()
 imagesc(xvals/lambdaOverD,yvals/lambdaOverD,iPSFv_BB);
 axis image; 
 axis([-2 2 -2 2]);
-title('broadband PSF w/ vortex');
+title('Broadband PSF w/ vortex');
 colorbar;%caxis([-3 0])
 colormap(parula(256));
 drawnow;
@@ -132,7 +162,7 @@ Fnum = getMFD(fiber_props,lambda0)/(lambda0*1.4); % focal ratio of the beam at t
 
 eta_maps = generateCouplingMap_polychromatic( Epup.*EPM, fiber_props, lambda0, Fnum, lambdas, totalPower0, lambdaOverD, 3*lambdaOverD, coords);
 
-figure(6);
+figure();
 for ch = 1:numWavelengths
     subplot(1,numWavelengths,ch);
     imagesc(xvals/lambdaOverD,yvals/lambdaOverD,log10(eta_maps(:,:,ch)));
@@ -176,41 +206,99 @@ for ch = 1:numWavelengths
     etas(ch) = cmap_min;
 end
 
-%Null shift plots for X, Y, and the trendlines that result
-figure(7);
+% %Null shift plots for X, Y, and the trendlines that result
+% figure();
+% subplot(2,2,1);
+% plot(lambdas/lambda0,Xshift/lambdaOverD, '-o', 'Color', 'r');
+% title('Xshift');
+% xlabel('\lambda/\lambda0')
+% ylabel('\eta')
+% subplot(2,2,2);
+% plot(lambdas/lambda0,Yshift/lambdaOverD, '-o', 'Color', 'b');
+% title('Yshift');
+% xlabel('\lambda/\lambda0')
+% ylabel('\eta')
+% 
+% px = polyfit(lambdas/lambda0,Xshift'/lambdaOverD,1);
+% pxy = polyval(px,lambdas/lambda0);
+% subplot(2,2,3);
+% plot(lambdas/lambda0,pxy,'-o','Color','m')
+% title('X Offset Trend')
+% xlabel('\lambda/\lambda0')
+% ylabel('\eta')
+% %txt = ['p value: ' num2str(px)];
+% %text(mean(lambdas/lambda0),mean(pxy),txt);
+% 
+% py = polyfit(lambdas/lambda0,Yshift'/lambdaOverD,1);
+% pyy = polyval(py,lambdas/lambda0);
+% subplot(2,2,4);
+% plot(lambdas/lambda0,pyy,'-o','Color','g');
+% title('Y Offset Trend')
+% xlabel('\lambda/\lambda0')
+% ylabel('\eta')
+% %txt = ['p value: ' num2str(py)];
+% %text(mean(lambdas/lambda0),mean(px),txt);
+% 
+% %Null value vs wavelength offset from central wavelength
+% figure();
+% subplot(1,1,1);
+% semilogy(lambdas/lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
+% title('Null Value vs \lambda/\lambda0')
+% xlabel('\lambda/\lambda0')
+% ylabel('\eta')
+% grid on
+% 
+% %Actual positional offset of null for x and y overlayed
+% figure();
+% plot(lambdas/lambda0,Xshift/lambdaOverD, '-o', 'Color', 'r');
+% hold on
+% plot(lambdas/lambda0,Yshift/lambdaOverD, '-o', 'Color', 'b');
+% legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
+% title('Null Movement')
+% xlabel('\lambda/\lambda_0')
+% ylabel('Null Shift [\lambda/D]')
+% grid on
+% 
+% %Overlay of trends in x and y null positional offset
+% figure();
+% plot(lambdas/lambda0,pxy,'-o','Color','r');
+% hold on
+% plot(lambdas/lambda0,pyy,'-o','Color','b');
+% legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
+% title('Null Movement')
+% xlabel('\lambda/\lambda_0')
+% ylabel('Null Shift [\lambda/D]')
+% %txt = ['y trend p value: ' num2str(py) newline 'x trend p value: ' num2str(px)];
+% %text(mean(lambdas/lambda0),mean(px),txt);
+% grid on
+
+%-- Null shift plots for X, Y, and the trendlines that result
+figure();
 subplot(2,2,1);
 plot(lambdas/lambda0,Xshift/lambdaOverD, '-o', 'Color', 'r');
 title('Xshift');
-xlabel('\lambda/\lambda0')
-ylabel('\eta')
 subplot(2,2,2);
 plot(lambdas/lambda0,Yshift/lambdaOverD, '-o', 'Color', 'b');
 title('Yshift');
-xlabel('\lambda/\lambda0')
-ylabel('\eta')
 
 px = polyfit(lambdas/lambda0,Xshift'/lambdaOverD,1);
 pxy = polyval(px,lambdas/lambda0);
 subplot(2,2,3);
 plot(lambdas/lambda0,pxy,'-o','Color','m')
 title('X Offset Trend')
-xlabel('\lambda/\lambda0')
-ylabel('\eta')
 txt = ['p value: ' num2str(px)];
 text(mean(lambdas/lambda0),mean(pxy),txt);
 
-py = polyfit(lambdas/lambda0,Yshift'/lambdaOverD,1);
-pyy = polyval(py,lambdas/lambda0);
+py_1 = polyfit(lambdas/lambda0,Yshift'/lambdaOverD,1);
+pyy = polyval(py_1,lambdas/lambda0);
 subplot(2,2,4);
 plot(lambdas/lambda0,pyy,'-o','Color','g');
 title('Y Offset Trend')
-xlabel('\lambda/\lambda0')
-ylabel('\eta')
-txt = ['p value: ' num2str(py)];
+txt = ['p value: ' num2str(py_1)];
 text(mean(lambdas/lambda0),mean(px),txt);
 
-%Null value vs wavelength offset from central wavelength
-figure(8);
+%-- Null value vs wavelength offset from central wavelength
+figure();
 subplot(1,1,1);
 semilogy(lambdas/lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
 title('Null Value vs \lambda/\lambda0')
@@ -218,8 +306,8 @@ xlabel('\lambda/\lambda0')
 ylabel('\eta')
 grid on
 
-%Actual positional offset of null for x and y overlayed
-figure(9);
+%-- Actual positional offset of null for x and y overlayed
+figure();
 plot(lambdas/lambda0,Xshift/lambdaOverD, '-o', 'Color', 'r');
 hold on
 plot(lambdas/lambda0,Yshift/lambdaOverD, '-o', 'Color', 'b');
@@ -229,8 +317,8 @@ xlabel('\lambda/\lambda_0')
 ylabel('Null Shift [\lambda/D]')
 grid on
 
-%Overlay of trends in x and y null positional offset
-figure(12);
+%-- Overlay of trends in x and y null positional offset
+figure();
 plot(lambdas/lambda0,pxy,'-o','Color','r');
 hold on
 plot(lambdas/lambda0,pyy,'-o','Color','b');
@@ -238,8 +326,8 @@ legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
 title('Null Movement')
 xlabel('\lambda/\lambda_0')
 ylabel('Null Shift [\lambda/D]')
-txt = ['y trend p value: ' num2str(py) newline 'x trend p value: ' num2str(px)];
-text(mean(lambdas/lambda0),mean(px),txt);
+txt = ['y trend p value: ' num2str(py_1) newline 'x trend p value: ' num2str(px)];
+%text(mean(lambdas/lambda0),mean(px),txt);
 grid on
 
 
