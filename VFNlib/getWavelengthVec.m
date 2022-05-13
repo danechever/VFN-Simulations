@@ -8,7 +8,11 @@ function lams = getWavelengthVec( lambda0, fracBW, numWavelengths )
 %       numWavelengths: number of wavelengths
 %   Outputs:
 %       lams: wavelengths (meters)
-
-    lams = lambda0*linspace(1-fracBW/2,1+fracBW/2,numWavelengths);
+    
+    if numWavelengths == 1
+        lams = lambda0;
+    else
+        lams = lambda0*linspace(1-fracBW/2,1+fracBW/2,numWavelengths);
+    end
 
 end
