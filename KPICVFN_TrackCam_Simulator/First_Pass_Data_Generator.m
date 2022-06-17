@@ -1,3 +1,7 @@
+addpath(genpath(fullfile('..','VFNlib')));
+addpath(genpath(fullfile('..','..','falco-matlab')))
+
+%%
 % First pass at making a script that will generate realistic CRED2 images
 %    with pre-specified TT and WFE residuals
 
@@ -13,7 +17,7 @@ cred2sim = setUp_CRED2ImSim(Npup, Nim, charge, lam0, starHmag);
 
 %-- Run simulation to generate cube of data
 nframes = 1000;
-Tint = 0.028999;
+Tint = 0.028999; 
 % Add semi-realistic WFE
     % Add a low-order trefoil with noll 9. Then add high-order stuff to get
     % the static speckle halo we get with the SHWFS on Keck
@@ -39,8 +43,10 @@ verbose = true;
     % then only 30 are displayed, evenly sampled in data cube.
 isDispFrames = true;
 % Option to save fits file at end as well as filename to use
-isSaveFits = true;
-flnm = '/media/Data_Drive/KPIC/dev/dechever/TTJitCharac/Algo_Dev/1000Samp_NoWFE_TiltMean00_RMS4545.fits';
+isSaveFits = false;
+pth = '/media/Data_Drive/KPIC/dev/dechever/TTJitCharac/Algo_Dev/CRED2_Sim_SampleData/';
+flnm = sprintf('%05dSamp_%06.3fWFECoeff_TiltMean%05.2f%05.2f_RMS%05.2f%05.2f.fits',nframes,frstcoeff,mu_x,mu_y,sig_x,sig_y);
+flnm = [pth flnm];
 
 %% OPTIONAL: Display the images
 if isDispFrames

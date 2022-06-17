@@ -127,34 +127,34 @@ for frame = 1:NFrames
 
     %-- 0) Square the PSF (E-field) to get intensity 
     iPSFv = abs(PSFv).^2;   % [photons/s/pixel]
-
+    
+    %-- 4) Account for integration time 
+    iPSFv = Tint * iPSFv; % [ph/pix/t_sample]
+    
     %-- 1) Given intensity in focal plane, add photon noise (in photons/s/pix)
     % draw from poisson distribution to get shot noise (on per-pixel basis)
-    noisy_im = poissrnd(iPSFv);     % [photons/s/pixel]
+    noisy_im = poissrnd(iPSFv);     % [photons/t_sample/pixel]
 
         % TODO::: CONFIRM THAT THIS IS INDEED THE NOISY IMAGE AND NOT TGHE
         % NOISE ITSELF
 
     %-- 2) Convert from photons/s/pix to electrons/s/pix using QE
-    noisy_im = cred2sim.CRED2_QE * noisy_im;     % [e-/s/pixel]
+    noisy_im = cred2sim.CRED2_QE * noisy_im;     % [e-/t_sample/pixel]
 
     %-- 3) Add Dark current (in electrons/t/pix)
     % Sample poisson distribution to get dark current per pixel
-    dark_noise = poissrnd(cred2sim.CRED2_DarkCurrent,size(noisy_im));
+    dark_noise = poissrnd(cred2sim.CRED2_DarkCurrent*Tint,size(noisy_im)); % [e-/t_sample/pix]
     % Add noise
-    noisy_im = dark_noise + noisy_im;   % [e-/s/pix]
-
-    %-- 4) Account for integration time 
-    noisy_im = Tint * noisy_im; % [e-/pix]
+    noisy_im = dark_noise + noisy_im;   % [e-/t_sample/pix]
 
     %-- 5) Add Read noise (in e-/pix)
     % Sample gaussian distribution to get read noise per pixel
        % First 0 is to set noise to be mean-0
     read_noise = normrnd(0, cred2sim.CRED2_ReadNoiseRMS, size(noisy_im));
-    noisy_im = read_noise + noisy_im;
+    noisy_im = read_noise + noisy_im;   % [e-/t_sample/pix]
 
     %-- 6) Convert to DN
-    noisy_im = noisy_im / cred2sim.CRED2_ADU;
+    noisy_im = noisy_im / cred2sim.CRED2_ADU;   % [count/pix/t_sample]
 
 
 
