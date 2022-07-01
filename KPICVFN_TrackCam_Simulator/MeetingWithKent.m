@@ -39,6 +39,7 @@ offsetY = 0;
     % other and with lambda
 fnum = 38.9; % from Mitsuko Zemax measurement (link=https://caltech.sharepoint.com/sites/coo/Shared%20Documents/OIR%20-%20Preprojects/KPIC/KPIC%20-%20Systems%20Engineering%20%5BL2%5D/KPIC%20-%20L2%20Optical%20Design/Optical_simulation_reports/KPIC%20phase%20II%20TTM%20and%20focal%20plane%20motion.pptx?d=w16f8e6de681241769a41208ed9388f89&csf=1&web=1&e=fAYtnq)
              % (Alternate value of unkown origin: 23.9)
+             % (Alternate value from Kent: 32.87)
 DPup = 1e-3;    %[m] pupil size 
 foc = fnum*DPup;      %[m] final focal length
 
@@ -80,7 +81,7 @@ coordsPP.dx = PUPIL_dx;
 coordsFP.dx = CRED2_dx;
 
 %% Create array with pupil function
-
+% TODO::: Switch to keck pupil: makeKeckPupil
 PUPIL = makeCircularPupil( apRad, N );
 
 figure(1); 
@@ -149,7 +150,7 @@ fprintf('E-field Amp at Pup: %f [sqrt(ph/s/pix)]\n',EPup_amp);
 % For proper airy function:
 %  - centroiding accuracy
 %  
-%  [FWHM (PSF width = lam/D)] / SNR
+%  [FWHM (PSF width = lam/D)] / c * SNR        :: c ~ 2 ::
 %  
 %  ---> To centroid to within 1/10 lam/D, you need an SNR of 10
 
@@ -245,7 +246,7 @@ end
 [~, PSF] = getPSF_mft(Epup, lambdas, foc, coordsPP, coordsFP);
 
 % Compute broadband image intensity (without peak-normalization)
-iPSF_BB = mean(abs(PSF).^2,3);
+iPSF_BB = sum(abs(PSF).^2,3);
 peakFlux = max(iPSF_BB(:));
 fprintf('Peak Intensity in PSF: %f [ph/s]\n',peakFlux);
 
@@ -300,27 +301,27 @@ drawnow;
 %-- 0) Square the PSF (E-field) to get intensity 
 iPSFv = abs(PSFv).^2;   % [photons/s/pixel]
 
+%-- 4) Account for integration time 
+Tint = 0.028998518;
+iPSFv = Tint * iPSFv; % [ph/pix/t_sample]
+
 %-- 1) Given intensity in focal plane, add photon noise (in photons/s/pix)
 % draw from poisson distribution to get shot noise (on per-pixel basis)
-noisy_im = poissrnd(iPSFv);     % [photons/s/pixel]
+noisy_im = poissrnd(iPSFv);     % [photons/t_sample/pix]
     
     % TODO::: CONFIRM THAT THIS IS INDEED THE NOISY IMAGE AND NOT TGHE
     % NOISE ITSELF
 
 %-- 2) Convert from photons/s/pix to electrons/s/pix using QE
 CRED2_QE = 0.85;
-noisy_im = CRED2_QE * noisy_im;     % [e-/s/pixel]
+noisy_im = CRED2_QE * noisy_im;     % [e-/t_sample/pixel]
 
 %-- 3) Add Dark current (in electrons/t/pix)
-CRED2_DarkCurrent = 449;    % [e-/s/pix] (value @-40C)
+CRED2_DarkCurrent = 449 * Tint;    % [e-/t_sample/pix] (value @-40C)
 % Sample poisson distribution to get dark current per pixel
 dark_noise = poissrnd(CRED2_DarkCurrent,size(noisy_im));
 % Add noise
 noisy_im = dark_noise + noisy_im;   % [e-/s/pix]
-
-%-- 4) Account for integration time 
-Tint = 0.028998518;
-noisy_im = Tint * noisy_im; % [e-/pix]
 
 %-- 5) Add Read noise (in e-/pix)
 CRED2_ReadNoiseRMS = 39.6;  % [e- rms (/pix?)]
@@ -331,7 +332,7 @@ noisy_im = read_noise + noisy_im;
 
 %-- 6) Convert to DN
 CRED2_ADU = 2.26;   % [e-/count]
-noisy_im = noisy_im / CRED2_ADU;
+noisy_im = noisy_im / CRED2_ADU;  % [count/pix/t_sample]
 
 
 

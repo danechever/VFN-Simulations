@@ -34,7 +34,7 @@ offsetY = 0;
     % these don't matter in themselves as long as they are consistent w/ each 
     % other and with lambda
 fnum = 38.9; % from Mitsuko Zemax measurement (link=https://caltech.sharepoint.com/sites/coo/Shared%20Documents/OIR%20-%20Preprojects/KPIC/KPIC%20-%20Systems%20Engineering%20%5BL2%5D/KPIC%20-%20L2%20Optical%20Design/Optical_simulation_reports/KPIC%20phase%20II%20TTM%20and%20focal%20plane%20motion.pptx?d=w16f8e6de681241769a41208ed9388f89&csf=1&web=1&e=fAYtnq)
-             % (Alternate value of unkown origin: 23.9)
+             % (Alternate value of unkown origin: 23.9; alt value from kent email: 37.2)
 cred2sim.DPup = 1e-3;    %[m] pupil size 
 cred2sim.foc = fnum*cred2sim.DPup;      %[m] final focal length
 
@@ -94,7 +94,8 @@ cred2sim.coordsFP = coordsFP;
 
 %% Create array with pupil function
 
-cred2sim.PUPIL = makeCircularPupil( cred2sim.apRad, Npup );
+%cred2sim.PUPIL = makeCircularPupil( cred2sim.apRad, Npup );
+cred2sim.PUPIL = makeKeckPupil( 2*cred2sim.apRad, Npup );
 
 % figure(1); 
 % imagesc(cred2sim.xvalsPP,cred2sim.yvalsPP,cred2sim.PUPIL); 
