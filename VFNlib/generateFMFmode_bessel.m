@@ -9,14 +9,16 @@ function [modeC,modeS,modeParams,nModes] = generateFMFmode_bessel( NA, core_rad,
 %       dx: sample spacing in the image plane (meters) 
 %       coords: coordinates structure 
 %   Outputs:
-%       mode: 2D array with normalized mode field 
+%       modeC: 3D array with normalized mode fields (cosine terms)
+%       modeS: 3D array with normalized mode fields (sine terms)
+%       modeParams: Full list of mode parameters 
+%       nModes: Number of modes supported 
 
     % Normalized frequency 
     V = 2*pi*core_rad/lambda*NA; 
 
     [modeParams, nModes] = getModeParams(V);
-    %disp(['V=',num2str(V),': ',num2str(nModes),'modes'])
-    
+
     for modeIndex = 1:length(modeParams)
         
         l = modeParams(modeIndex).l;
@@ -48,30 +50,15 @@ function [modeC,modeS,modeParams,nModes] = generateFMFmode_bessel( NA, core_rad,
 end
 
 function [modeParams, nModes] = getModeParams(V)
-    
-%     wJ = 1.1428*V - 0.996;
-%     uJ = sqrt(V^2 - wJ.^2); 
 
     modeIndex = 1; 
     l = 0; 
     while true
         
         uVec = linspace(0,V,1000);
-%         wVec = sqrt(V^2 - uVec.^2);
         c = constraintDiffFunc(uVec,l,V); % solutions occur at the sign flips 
         signChanges = find(c(1:end-1)<0 & c(2:end) > 0);
-        
-%         figure(1); 
-%         plot(uVec,abs(c));
-%         hold on; 
-%         plot(uVec(signChanges),zeros(size(signChanges)),'o');
-%         hold off; 
-%         figure(2); 
-%         plot(uVec,c)
-%         hold on; 
-%         plot(uVec(signChanges),zeros(size(signChanges)),'o');
-%         hold off; 
-        
+
         % If there are no solutions for this l then we are done
         if isempty(signChanges)
             if l==0
@@ -99,7 +86,6 @@ function [modeParams, nModes] = getModeParams(V)
                 modeParams(modeIndex).l = l;
                 modeParams(modeIndex).w = wFit;        
                 modeParams(modeIndex).m = m;
-%                 modeParams(modeIndex)
                 modeIndex = modeIndex + 1; 
             else
                 disp(['Discarding mode ',num2str(l),num2str(m),'...']) 
@@ -115,7 +101,6 @@ end
 
 function c = constraintDiffFunc(u,l,V)   
 
-%     c = besselj(l,x)./(x.*besselj(l+1,x)) - abs(besselk(l,sqrt(V^2 - x.^2))./(sqrt(V^2 - x.^2).*besselk(l+1,sqrt(V^2 - x.^2))));
     w = sqrt(V^2 - u.^2);
     c = u.*besselj(l+1,u)./besselj(l,u) - w.*besselk(l+1,w)./besselk(l,w); 
     
