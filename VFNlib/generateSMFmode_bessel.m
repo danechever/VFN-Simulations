@@ -26,7 +26,7 @@ function mode = generateSMFmode_bessel( NA, core_rad, lambda, dx, coords )
     mode = mode_in_core;
     mode(coords.RHO*dx>core_rad) = mode_outside_core(coords.RHO*dx>core_rad);
     
-    % Return peak normalized mode field
+    % Return normalized mode field
     mode = mode/sqrt(sum(mode(:).^2));
 
 end
