@@ -8,6 +8,7 @@ function [ PUPIL ] = makeCircularSubapertures( params, Ngrid )
 %       params(i).y0 - y offset of ith aperture
 %       params(i).radius - radius of ith aperture. Circle if length=1 and
 %                          ellipse if length=2
+%       params(i).phase - phase of ith aperture (radians) 
 %       Ngrid - Number of samples across array 
 %
 %   Outputs:
@@ -19,7 +20,10 @@ function [ PUPIL ] = makeCircularSubapertures( params, Ngrid )
         x0 = params(apIndex).x0;
         y0 = params(apIndex).y0;
         rad = params(apIndex).radius;
-
+        if isfield(params,'phase')
+            phz = params(apIndex).phase;
+        end
+        
         if length(rad)==1
             RHO = sqrt( ((X-x0)/rad).^2 + ((Y-y0)/rad).^2 );
         elseif length(rad)==2
@@ -29,10 +33,13 @@ function [ PUPIL ] = makeCircularSubapertures( params, Ngrid )
         end
         
         subAp = exp(-RHO.^2000);
+        if isfield(params,'phase')
+            subAp = subAp.*exp(1i*phz);
+        end
         PUPIL = PUPIL + subAp;
     end
     
-    PUPIL(PUPIL>1) = 1; 
+    PUPIL(abs(PUPIL)>1) = exp(1i*angle(PUPIL(abs(PUPIL)>1))); 
     
 end
 
