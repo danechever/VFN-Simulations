@@ -1,19 +1,17 @@
-function OUT = generateWedgePlate(inputs, wedge_angle, wavelength, wedgetype)
+function OUT = generateWedgePlate(inputs, wedge, wavelength, wedgetype)
 
 wedge_mat = inputs.wedge_mat;
 lambda0 = inputs.lambda0;
-% lam0OverD_rad = inputs.lam0OverD_meters;
-% lambdaOverD_pixels = inputs.lambdaOverD; %Use this for OLD FFT based equation
-Ycoords = inputs.yvals; %yvals inputs.coordsPP.Y; %
+lam0OverD_meters = inputs.lam0OverD_meters;
+lambdaOverD_pixels = inputs.lambdaOverD; %Use this for OLD FFT based equation
+Ycoords = inputs.yvals; %inputs.yvalsPP; %yvals
 N = inputs.N;
 p_val = inputs.p;
 clocking = inputs.clocking;
 tilt_valsCopy = inputs.tilt_valsCopy;
 I = 85;
-dx = inputs.coordsPP.dx;
-Y = inputs.coordsPP.Y;
 
-if strcmpi(wedgetype, 'wedge')
+if(wedgetype == 'wedge')
     %% BEAM deviation INPUT TO WEDGE (radians)
     
 %    disp(getWedgeTilt(wedge_mat, wedge, 1e6*wavelength)/890.16);
@@ -30,7 +28,7 @@ if strcmpi(wedgetype, 'wedge')
 %     OUT = 2*pi*(1/890.16*getWedgeTilt(wedge_mat, wedge, 1e6*wavelength)/lam0OverD_rad*lambda0/wavelength)*lambdaOverD*Ycoords/N;% - 2*pi*p_val*lambdaOverD*Ycoords/N;
 %**************************************************************************       
 %DFT Implementation
-%     OUT = 2*pi*(1/890.16*getWedgeTilt(wedge_mat, wedge, 1e6*wavelength)/lam0OverD_rad*(lambda0/wavelength))...
+%     OUT = 2*pi*(1/890.16*getWedgeTilt(wedge_mat, wedge, 1e6*wavelength)/lam0OverD_meters*(lambda0/wavelength))...
 %         *lambdaOverD_pixels*Ycoords/N - 2*pi*p_val*lambdaOverD_pixels*Ycoords/N;
 %**************************************************************************    
 %     ____
@@ -42,16 +40,13 @@ if strcmpi(wedgetype, 'wedge')
 %     ____
 %**************************************************************************    
 %MFT Implementation
-    OUT = 2*pi*(1/890.1*(getRefractiveIndex(wedge_man, wavelength) - 1) * tan(wedge_angle)) * inputs.yvals;
-%     NOTE:::: TO FIX THE LINE BELOW, SHOULD JUST NEED TO CHANGE Ycoords TO BE THE REAL YVALS DIRECTLY INSTEAD OF RESCALED ALREADY
-%     OUT = 2*pi*(1/890.16*getWedgeTilt(wedge_mat,wedge,wavelength)/lam0OverD_rad*lambda0/wavelength)*Ycoords/(2*inputs.apRad); % - 2*pi*p_val*lambdaOverD_pixels*Ycoords/N; % Use this for the DM
-    %OUT = 2*pi*(1/890.16*getWedgeTilt(wedge_mat,wedge,1e6*wavelength)/lam0OverD_rad*lambda0/wavelength)*Ycoords/N; 
+    OUT = 2*pi*(1/890.16*getWedgeTilt(wedge_mat,wedge,1e6*wavelength)/lam0OverD_meters*lambda0/wavelength)*Ycoords/N; % - 2*pi*p_val*lambdaOverD_pixels*Ycoords/N; % Use this for the DM
 %**************************************************************************    
 %     disp(inputs.pyyo);
 %     fprintf(['Adjusted wedgeTilt: ']);
 %     disp(getWedgeTilt(wedge_mat, wedge, 1e6*wavelength)/890.16 - 2*pi*p_val*lambdaOverD);
         
-elseif strcmpi(wedgetype, 'adc')
+elseif(wedgetype == 'ADC__')
     
     %% Input Parameters
     phi1 = 7.0516 * py.numpy.pi / 180;
@@ -161,10 +156,7 @@ elseif strcmpi(wedgetype, 'adc')
 % MFT Implementation
 %     disp(inputs.numWavelengths);
     for i = 1:inputs.numWavelengths
-        
-        fOUT(:,:,i) = 2*pi*(pOUT(i)/890.16/inputs.lambdas(i))*Y*dx;
-        
-%         fOUT(:,:,i) = 2*pi*(pOUT(i)/(890.16)/lam0OverD_rad*lambda0/inputs.lambdas(i))*Ycoords/(2*inputs.apRad); % - 2*pi*p_val*lambdaOverD_pixels*Ycoords/N;
+        fOUT(:,:,i) = 2*pi*(pOUT(i)/(890.16)/lam0OverD_meters*lambda0/inputs.lambdas(i))*Ycoords/N; % - 2*pi*p_val*lambdaOverD_pixels*Ycoords/N;
         %disp(2*pi*(pOUT(i)/890.16/lam0OverD_rad*lambda0/inputs.lambdas(i))*lambdaOverD);
     end
 %**************************************************************************    

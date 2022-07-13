@@ -13,13 +13,13 @@ N = 2^10; % Size of computational grid (NxN samples)
 apRad = N/2-4; % Aperture radius in samples 
 
 %-- Define wavelength info
-lambda0 = 650e-9; %central wavelength
+lambda0 = 2.2e-6; %central wavelength
 fracBW = 0.2; % \Delta\lambda/\lambda
 numWavelengths = 3; % number of discrete wavelengths 
 lambdas = getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths (meters)
 
 %-- Define charge of the vortex mask at each wavelength
-charge = 2*ones(1,numWavelengths); % achromatic
+charge = 0*ones(1,numWavelengths); % achromatic
 
 %-- Define wavefront error at the central wavelength
   % 1) Pist, Tip, Tilt, defoc, ob.astig, ver.astig, ver.coma, hor.coma,
@@ -33,9 +33,13 @@ offsetY = 0;
 
 %-- Parameters for SMF (Thorlabs SM600 in this case)
 %     % link: https://www.thorlabs.com/NewGroupPage9_PF.cfm?ObjectGroup_ID=949
-fiber_props.core_rad = 3.65e-6/2;% Core radius [um]
-fiber_props.n_core = 1.460095;% core index (interp @650nm)
-fiber_props.n_clad = 1.45667;% cladding index (interp @650nm)
+% fiber_props.core_rad = 3.65e-6/2;% Core radius [um]
+% fiber_props.n_core = 1.460095;% core index (interp @650nm)
+% fiber_props.n_clad = 1.45667;% cladding index (interp @650nm)
+% fiber_props.type = 'gaussian';
+fiber_props.core_rad = 5.5e-6;% Core radius [um]
+fiber_props.n_core = 1.4436; %1.4571; core index (interpolated from linear fit to 3 points)
+fiber_props.n_clad = 1.4381; %1.4558; cladding index (interpolated from linear fit to 3 points)
 fiber_props.type = 'gaussian';
 
 %-- Define parameters for falco MFT propagator
@@ -155,22 +159,36 @@ drawnow;
 
 lambda0OverD = lambda0Fnum_meters/foc;
 
-tiltFP = [-0.5 0 0.5] * lambda0OverD;
+tiltFP = [-0.5 0.5 0.5] * lambda0OverD;
+
+lam0OverD_meters = lambda0Fnum_meters/foc;
+
+lambdaOverD_pixels = 8;
+
+
+% p_val = 1.0741;
 
 %  fOUT(:,:,i) = 2*pi*(pOUT(i)/(890.16)/lam0OverD_rad*lambda0/inputs.lambdas(i))...
 %             *lambdaOverD*Ycoords/N;
 
 figure()
 for i = 1:length(lambdas)
-
-    wphz(:,:,i) = 2*pi*tiltFP(i)/lambda0OverD*lambda0/lambdas(i)*coordsPP.Y/N;
-    sphz(:,:,i) = phz - wphz(:,:,i);
     
+%     wphz = 2*pi*(1/890.16*getWedgeTilt('CaF2',4.5493e-4,lambdas(i))/lam0OverD_meters*lambda0/lambdas(i))*yvalsPP/N - 2*pi*p_val*lambdaOverD_pixels*yvalsPP/N; % Use this for the DM
+%         
+%     sphz = phz - wphz;
+%         
+%     Epup_Wedge(:,:,i) = exp(1i*wphz).*PUPIL;
+%     Epup_Shift(:,:,i) = exp(1i*sphz).*PUPIL;
+        
+    wphz(:,:,i) = 2*pi*tiltFP(i)/lambda0OverD*lambda0/lambdas(i)*coordsPP.Y/(2*apRad);
+    sphz(:,:,i) = phz - wphz(:,:,i);
+
     Epup_Wedge(:,:,i) = exp(1i*wphz(:,:,i)).*PUPIL;
     Epup_Shift(:,:,i) = exp(1i*sphz(:,:,i)).*PUPIL;
     
     subplot(3,length(lambdas),i);
-    imagesc(xvalsPP,yvalsPP,angle(Epup(:,:,i)));
+    imagesc(xvalsPP,yvalsPP,angle(Epup(:,:,i))/(2*pi));
     axis image; 
     axis([-1 1 -1 1]);
     title(['Pupil phase at ' num2str(lambdas(i)) 'm']);
@@ -178,26 +196,26 @@ for i = 1:length(lambdas)
     colorbar;
     
     subplot(3,length(lambdas),i+3);
-    imagesc(xvalsPP,yvalsPP,angle(Epup_Wedge(:,:,i)));
+    imagesc(xvalsPP,yvalsPP,angle(Epup_Wedge(:,:,i))/(2*pi));
     axis image; 
     axis([-1 1 -1 1]);
     title(['Pupil phase at ' num2str(lambdas(i)) 'm']);
     colormap(hsv(256));
     colorbar;
     
-%     subplot(3,length(lambdas),i+6);
-%     imagesc(xvalsPP,yvalsPP,angle(Epup(:,:,i).*sphz(:,:,i)));
-%     axis image; 
-%     axis([-1 1 -1 1]);
-%     title(['Pupil phase at ' num2str(lambdas(i)) 'm']);
-%     colormap(hsv(256));
-%     colorbar;
+    subplot(3,length(lambdas),i+6);
+    imagesc(xvalsPP,yvalsPP,angle(Epup(:,:,i).*sphz(:,:,i)));
+    axis image; 
+    axis([-1 1 -1 1]);
+    title(['Pupil phase at ' num2str(lambdas(i)) 'm']);
+    colormap(hsv(256));
+    colorbar;
     
     drawnow;
 
 end
 
-%% Get PSF with one wave of tilt
+%% Get PSF with tilt
 [iPSFw_BB, PSFw] = getPSF_mft(Epup_Shift, lambdas, foc, coordsPP, coordsFP);
 
 figure()
@@ -296,3 +314,42 @@ if numWavelengths > 1
     disp('---')
     fprintf('Broadband Performance:     on-axis coup = %e,    max = %f %%\n', mean(eta_onAx), max(eta_map_BB,[],'all')*100);
 end
+
+%% Plot Maxima
+for ch = 1:numWavelengths 
+    map = eta_maps(:,:,ch); %one slice of the eta_maps cube
+    map_max = max(map,[],'all'); %the maximum value in cmap
+    [max_ind(1),max_ind(2)] = find(map_max==map,1); %linear coordinates of max value
+    
+    Xshift(ch) = Nxi/2+1-max_ind(2); %x value is wavelength, y value is offset
+    Yshift(ch) = Nxi/2+1-max_ind(1);%^
+    
+    etaw(ch) = map_max;
+    
+end
+
+lambdaOverD = lambda0Fnum_samp; %N/apRad/2; % lam/D in units of samples in the image plane
+
+figure();
+subplot(2,2,1);
+plot(lambdas/lambda0,Xshift/lambdaOverD, '-o', 'Color', 'r');
+title('Xshift');
+subplot(2,2,2);
+plot(lambdas/lambda0,Yshift/lambdaOverD, '-o', 'Color', 'b');
+title('Yshift');
+
+px = polyfit(lambdas/lambda0,Xshift'/lambdaOverD,1);
+pxy = polyval(px,lambdas/lambda0);
+subplot(2,2,3);
+plot(lambdas/lambda0,pxy,'-o','Color','m')
+title('X Offset Trend')
+txt = ['p value: ' num2str(px)];
+text(mean(lambdas/lambda0),mean(pxy),txt);
+
+py_1 = polyfit(lambdas/lambda0,Yshift'/lambdaOverD,1);
+pyy = polyval(py_1,lambdas/lambda0);
+subplot(2,2,4);
+plot(lambdas/lambda0,pyy,'-o','Color','g');
+title('Y Offset Trend')
+txt = ['p value: ' num2str(py_1)];
+text(mean(lambdas/lambda0),mean(px),txt);

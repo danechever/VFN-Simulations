@@ -52,6 +52,8 @@ end
 
 soln = GDM\surfDesiredVec; % Calculates the voltages 
 dm.V = reshape(soln,[dm.Nact,dm.Nact]);% Reshapes the voltages into 2D array
+dm.facesheetFlatmap = 0*ones(dm.Nact); %zeros(dm.Nact); % Bias map (V)
+
 
 %dm = falco_update_dm_gain_map(dm);
 

@@ -242,116 +242,116 @@ drawnow;
 %-- Parameters for Thorlabs SM600
 %-- Using SM2000 in this version of the code
     %-- link: https://www.thorlabs.com/NewGroupPage9_PF.cfm?ObjectGroup_ID=949
-fiber_props.core_rad = 5.5e-6;% Core radius [um]
-fiber_props.n_core = 1.4436; %1.4571; core index (interpolated from linear fit to 3 points)
-fiber_props.n_clad = 1.4381; %1.4558; cladding index (interpolated from linear fit to 3 points)
-fiber_props.type = 'bessel';
-Fnum = getMFD(fiber_props,inpar.lambda0)/(inpar.lambda0*1.4); % focal ratio of the beam at the fiber
-
-eta_maps = generateCouplingMap_polychromatic(Epup_Wedge, fiber_props, inpar.lambda0, Fnum, inpar.lambdas, totalPower0, inpar.lambdaOverD, 3*inpar.lambdaOverD, coords);
-
-figure();
-for ch = 1:inpar.numWavelengths
-    subplot(1,inpar.numWavelengths,ch);
-    imagesc(inpar.xvals/inpar.lambdaOverD,inpar.yvals/inpar.lambdaOverD,log10(eta_maps(:,:,ch)));
-    axis image; 
-    axis([-2 2 -2 2]);
-    caxis([-3 -0.5])
-    title(['\eta at ',num2str(inpar.lambdas(ch)*1e9),'nm']);
-    colorbar;
-    colormap(gray(256));
-end
-
-%-- find the centroid of eta_maps(:,:,ch)
-%-- find min in centroid
-%-- find coordinates of this min in eta_maps
-%-- plot the difference in these coordinates in x and y position from the
-%   origin, with lambda corresponding to ch on the bottom and offset on the
-%   left
+% fiber_props.core_rad = 5.5e-6;% Core radius [um]
+% fiber_props.n_core = 1.4436; %1.4571; core index (interpolated from linear fit to 3 points)
+% fiber_props.n_clad = 1.4381; %1.4558; cladding index (interpolated from linear fit to 3 points)
+% fiber_props.type = 'bessel';
+% Fnum = getMFD(fiber_props,inpar.lambda0)/(inpar.lambda0*1.4); % focal ratio of the beam at the fiber
 % 
-%-- Finds the radius of the centroid to crop the image to depending on the maximum eta in 1 slice
-%   of eta_maps(:,:,ch)
-Xshift = zeros(inpar.numWavelengths,1);
-Yshift = zeros(inpar.numWavelengths,1);
-etas = zeros(inpar.numWavelengths, 1);
-
-for ch = 1:inpar.numWavelengths 
-    map = eta_maps(:,:,ch); %one slice of the eta_maps cube
-    map_max = max(map,[],'all'); %the maximum value in cmap
-    [max_ind(1),max_ind(2)] = find(map_max==map,1); %linear coordinates of max value
-    max_rho = sqrt(((inpar.N/2+1)-max_ind(1))^2 + ((inpar.N/2+1)-max_ind(2))^2);
-    
-    crp = 2*max_rho; %The length of one side of the cube to crop the image to
-
-    cmap = map(end/2+1-floor(crp/2):end/2+1+floor(crp/2),end/2+1-floor(crp/2):end/2+1+floor(crp/2)); %the centroid
-    cmap_min = min(cmap,[],'all'); %minimum value in the centroid
-    [min_ind(1),min_ind(2)] = find(cmap_min==cmap); %indices of minimum value in the centroid
-    min_ind = min_ind + (inpar.N/2-floor(crp/2)); %adjust min values to reflect position in map, not cmap
-   
-    Xshift(ch) = inpar.N/2+1-min_ind(2); %x value is wavelength, y value is offset
-    Yshift(ch) = inpar.N/2+1-min_ind(1);%^
-    
-    etas(ch) = cmap_min;
-end
-
-%%
-%-- Null shift plots for X, Y, and the trendlines that result
-figure();
-subplot(2,2,1);
-plot(inpar.lambdas/inpar.lambda0,Xshift/inpar.lambdaOverD, '-o', 'Color', 'r');
-title('Xshift');
-subplot(2,2,2);
-plot(inpar.lambdas/inpar.lambda0,Yshift/inpar.lambdaOverD, '-o', 'Color', 'b');
-title('Yshift');
-
-px = polyfit(inpar.lambdas/inpar.lambda0,Xshift'/inpar.lambdaOverD,1);
-pxy = polyval(px,inpar.lambdas/inpar.lambda0);
-subplot(2,2,3);
-plot(inpar.lambdas/inpar.lambda0,pxy,'-o','Color','m')
-title('X Offset Trend')
-txt = ['p value: ' num2str(px)];
-text(mean(inpar.lambdas/inpar.lambda0),mean(pxy),txt);
-
-py_1 = polyfit(inpar.lambdas/inpar.lambda0,Yshift'/inpar.lambdaOverD,1);
-pyy = polyval(py_1,inpar.lambdas/inpar.lambda0);
-subplot(2,2,4);
-plot(inpar.lambdas/inpar.lambda0,pyy,'-o','Color','g');
-title('Y Offset Trend')
-txt = ['p value: ' num2str(py_1)];
-text(mean(inpar.lambdas/inpar.lambda0),mean(px),txt);
-
-%%
-%-- Null value vs wavelength offset from central wavelength
-figure();
-subplot(1,1,1);
-semilogy(inpar.lambdas/inpar.lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
-title('Null Value vs \lambda/\lambda0')
-xlabel('\lambda/\lambda0')
-ylabel('\eta')
-grid on
-
-%%
-%-- Actual positional offset of null for x and y overlayed
-figure();
-plot(inpar.lambdas/inpar.lambda0,Xshift/inpar.lambdaOverD, '-o', 'Color', 'r');
-hold on
-plot(inpar.lambdas/inpar.lambda0,Yshift/inpar.lambdaOverD, '-o', 'Color', 'b');
-legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
-title('Null Movement')
-xlabel('\lambda/\lambda_0')
-ylabel('Null Shift [\lambda/D]')
-grid on
-
-%%
-%-- Overlay of trends in x and y null positional offset
-figure();
-plot(inpar.lambdas/inpar.lambda0,pxy,'-o','Color','r');
-hold on
-plot(inpar.lambdas/inpar.lambda0,pyy,'-o','Color','b');
-legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
-title('Null Movement')
-xlabel('\lambda/\lambda_0')
-ylabel('Null Shift [\lambda/D]')
-txt = ['y trend p value: ' num2str(py_1) newline 'x trend p value: ' num2str(px)];
-%text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
-grid on
+% eta_maps = generateCouplingMap_polychromatic(Epup_Wedge, fiber_props, inpar.lambda0, Fnum, inpar.lambdas, totalPower0, inpar.lambdaOverD, 3*inpar.lambdaOverD, coords);
+% 
+% figure();
+% for ch = 1:inpar.numWavelengths
+%     subplot(1,inpar.numWavelengths,ch);
+%     imagesc(inpar.xvals/inpar.lambdaOverD,inpar.yvals/inpar.lambdaOverD,log10(eta_maps(:,:,ch)));
+%     axis image; 
+%     axis([-2 2 -2 2]);
+%     caxis([-3 -0.5])
+%     title(['\eta at ',num2str(inpar.lambdas(ch)*1e9),'nm']);
+%     colorbar;
+%     colormap(gray(256));
+% end
+% 
+% %-- find the centroid of eta_maps(:,:,ch)
+% %-- find min in centroid
+% %-- find coordinates of this min in eta_maps
+% %-- plot the difference in these coordinates in x and y position from the
+% %   origin, with lambda corresponding to ch on the bottom and offset on the
+% %   left
+% % 
+% %-- Finds the radius of the centroid to crop the image to depending on the maximum eta in 1 slice
+% %   of eta_maps(:,:,ch)
+% Xshift = zeros(inpar.numWavelengths,1);
+% Yshift = zeros(inpar.numWavelengths,1);
+% etas = zeros(inpar.numWavelengths, 1);
+% 
+% for ch = 1:inpar.numWavelengths 
+%     map = eta_maps(:,:,ch); %one slice of the eta_maps cube
+%     map_max = max(map,[],'all'); %the maximum value in cmap
+%     [max_ind(1),max_ind(2)] = find(map_max==map,1); %linear coordinates of max value
+%     max_rho = sqrt(((inpar.N/2+1)-max_ind(1))^2 + ((inpar.N/2+1)-max_ind(2))^2);
+%     
+%     crp = 2*max_rho; %The length of one side of the cube to crop the image to
+% 
+%     cmap = map(end/2+1-floor(crp/2):end/2+1+floor(crp/2),end/2+1-floor(crp/2):end/2+1+floor(crp/2)); %the centroid
+%     cmap_min = min(cmap,[],'all'); %minimum value in the centroid
+%     [min_ind(1),min_ind(2)] = find(cmap_min==cmap); %indices of minimum value in the centroid
+%     min_ind = min_ind + (inpar.N/2-floor(crp/2)); %adjust min values to reflect position in map, not cmap
+%    
+%     Xshift(ch) = inpar.N/2+1-min_ind(2); %x value is wavelength, y value is offset
+%     Yshift(ch) = inpar.N/2+1-min_ind(1);%^
+%     
+%     etas(ch) = cmap_min;
+% end
+% 
+% %%
+% %-- Null shift plots for X, Y, and the trendlines that result
+% figure();
+% subplot(2,2,1);
+% plot(inpar.lambdas/inpar.lambda0,Xshift/inpar.lambdaOverD, '-o', 'Color', 'r');
+% title('Xshift');
+% subplot(2,2,2);
+% plot(inpar.lambdas/inpar.lambda0,Yshift/inpar.lambdaOverD, '-o', 'Color', 'b');
+% title('Yshift');
+% 
+% px = polyfit(inpar.lambdas/inpar.lambda0,Xshift'/inpar.lambdaOverD,1);
+% pxy = polyval(px,inpar.lambdas/inpar.lambda0);
+% subplot(2,2,3);
+% plot(inpar.lambdas/inpar.lambda0,pxy,'-o','Color','m')
+% title('X Offset Trend')
+% txt = ['p value: ' num2str(px)];
+% text(mean(inpar.lambdas/inpar.lambda0),mean(pxy),txt);
+% 
+% py_1 = polyfit(inpar.lambdas/inpar.lambda0,Yshift'/inpar.lambdaOverD,1);
+% pyy = polyval(py_1,inpar.lambdas/inpar.lambda0);
+% subplot(2,2,4);
+% plot(inpar.lambdas/inpar.lambda0,pyy,'-o','Color','g');
+% title('Y Offset Trend')
+% txt = ['p value: ' num2str(py_1)];
+% text(mean(inpar.lambdas/inpar.lambda0),mean(px),txt);
+% 
+% %%
+% %-- Null value vs wavelength offset from central wavelength
+% figure();
+% subplot(1,1,1);
+% semilogy(inpar.lambdas/inpar.lambda0,etas,'-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
+% title('Null Value vs \lambda/\lambda0')
+% xlabel('\lambda/\lambda0')
+% ylabel('\eta')
+% grid on
+% 
+% %%
+% %-- Actual positional offset of null for x and y overlayed
+% figure();
+% plot(inpar.lambdas/inpar.lambda0,Xshift/inpar.lambdaOverD, '-o', 'Color', 'r');
+% hold on
+% plot(inpar.lambdas/inpar.lambda0,Yshift/inpar.lambdaOverD, '-o', 'Color', 'b');
+% legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
+% title('Null Movement')
+% xlabel('\lambda/\lambda_0')
+% ylabel('Null Shift [\lambda/D]')
+% grid on
+% 
+% %%
+% %-- Overlay of trends in x and y null positional offset
+% figure();
+% plot(inpar.lambdas/inpar.lambda0,pxy,'-o','Color','r');
+% hold on
+% plot(inpar.lambdas/inpar.lambda0,pyy,'-o','Color','b');
+% legend({'Xshift', 'Yshift'}, 'Location', 'SouthEast');
+% title('Null Movement')
+% xlabel('\lambda/\lambda_0')
+% ylabel('Null Shift [\lambda/D]')
+% txt = ['y trend p value: ' num2str(py_1) newline 'x trend p value: ' num2str(px)];
+% %text(mean(inPar.lambdas/inPar.lambda0),mean(px),txt);
+% grid on

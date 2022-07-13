@@ -1,7 +1,7 @@
 %{
 %}
 
-clear; %close all; 
+clear; close all; 
 addpath(genpath(fullfile('VFNlib')));
 addpath(genpath(fullfile('..','falco-matlab')))
 
@@ -145,7 +145,7 @@ figure(5)
 imagesc(xvalsFP,yvalsFP,iPSFv_BB);
 axis image; 
 axis([-3 3 -3 3]);
-title('broadband PSF w/o vortex');
+title('broadband PSF w/ vortex');
 colorbar;%caxis([-3 0])
 colormap(parula(256));
 drawnow;

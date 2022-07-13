@@ -9,13 +9,13 @@ apRad = 256; % Aperture radius in samples
 
 % Define wavelength info
 lambda0 = 650e-9; %central wavelength
-fracBW = 0.5; %\Delta\lambda/\lambda
-numWavelengths = 5;% number of discrete wavelengths 
+fracBW = 1e-9; %\Delta\lambda/\lambda
+numWavelengths = 1;% number of discrete wavelengths 
 lambdas = getWavelengthVec(lambda0,fracBW,numWavelengths);% array of wavelengths (meters)
 
 % Define charge of the vortex mask at each wavelength
-%charge = ones(1,numWavelengths); % achromatic
-charge = lambda0./lambdas; % simple scalar model
+charge = 0*ones(1,numWavelengths); % achromatic
+%charge = lambda0./lambdas; % simple scalar model
 
 % Define wavefront error at the central wavelength
 nolls = 4:8;
@@ -112,12 +112,14 @@ drawnow;
 % Parameters for Thorlabs SM600
     % link: https://www.thorlabs.com/NewGroupPage9_PF.cfm?ObjectGroup_ID=949
 fiber_props.core_rad = 4.3e-6/2;% Core radius [um]
-fiber_props.n_core = 1.4571;% core index (interpolated from linear fit to 3 points)
-fiber_props.n_clad = 1.4558;% cladding index (interpolated from linear fit to 3 points)
+%fiber_props.n_core = 1.4571;% core index (interpolated from linear fit to 3 points)
+%fiber_props.n_clad = 1.4558;% cladding index (interpolated from linear fit to 3 points)
+fiber_props.n_core = 1.4601;% core index (interp @650nm)
+fiber_props.n_clad = 1.4567;% cladding index (interp @650nm)
 fiber_props.type = 'bessel';
-Fnum = getMFD(fiber_props,lambda0)/(lambda0*1.4); % focal ratio of the beam at the fiber
+Fnum = getMFD(fiber_props,lambda0)/(lambda0*1.42); % focal ratio of the beam at the fiber
 
-eta_maps = generateCouplingMap_polychromatic( Epup.*EPM, fiber_props, lambda0, Fnum, lambdas, totalPower0, lambdaOverD, 3*lambdaOverD, coords);
+eta_maps = generateCouplingMap_polychromatic( Epup.*EPM, fiber_props, lambda0, Fnum, lambdas, totalPower0, lambdaOverD, 7*lambdaOverD, coords);
 
 figure(6);
 for ch = 1:numWavelengths
@@ -128,4 +130,5 @@ for ch = 1:numWavelengths
     title(['\eta at ',num2str(lambdas(ch)*1e9),'nm']);
     colorbar; 
     colormap(gray(256));
+    fprintf('Max Coupling @%f nm:  %f\n',lambdas(ch),max(eta_maps(:,:,ch),[],'all'))
 end

@@ -1,0 +1,190 @@
+clc;
+clear; 
+close all; 
+% addpath(['..' filesep 'VFNlib']);
+% addpath(['..' filesep '..' filesep 'falco-matlab']);
+
+addpath(genpath(fullfile('..','VFNlib')));
+addpath(genpath(fullfile('..','..','falco-matlab')));
+addpath(genpath(fullfile('..','..','VFN-Lab')));
+
+py.importlib.import_module('sellmeir1');
+py.importlib.import_module('triple_prism');
+load pyyo;
+inpar.pyyCopy = pyyCopy;
+load oldetas;
+inpar.etasCopy = etasCopy;
+load oldetasonax
+inpar.eta_onAxCopy = eta_onAxCopy;
+load py1o;
+inpar.py_1Copy = py_1Copy;
+load ctilt;
+inpar.tilt_valsCopy = tilt_valsCopy;
+sellmeir1coeffs;
+
+% Provide path where the DM Basis file is located
+dmBasisPath = '/media/Data_Drive/VFN/ScalarOnPrimaryData/';
+%% Input parameters 
+
+%-- Provide regular parameters
+% Define sampling info
+inpar.N = 2^10; % Size of computational grid (NxN samples) 
+inpar.apRad = inpar.N/2-4; % Aperture radius in samples
+inpar.apDia0 = 2 * inpar.apRad;
+
+%-- Define wavelength info
+inpar.lambda0 = 2.2e-6; %central wavelength
+% fracBW = 0.2; % \Delta\lambda/\lambda
+inpar.fracBW = 0.1818; %\Delta\lambda/\lambda
+inpar.numWavelengths = 51; % number of discrete wavelengths 
+inpar.lambdas = getWavelengthVec(inpar.lambda0, inpar.fracBW, inpar.numWavelengths);% array of wavelengths (meters)
+
+inpar.keckD = 10.949;
+% inpar.lam0OverD = inpar.lambdas(ceil(inpar.numWavelengths / 2)) / inpar.keckD;
+
+%-- Define charge of the vortex mask at each wavelength
+inpar.charge = 1*ones(1,inpar.numWavelengths); % achromatic
+
+%-- Define wavefront error at the central wavelength
+  % 1) Pist, Tip, Tilt, defoc, ob.astig, ver.astig, ver.coma, hor.coma,
+  % 9) ver.tref, ob.tref, spher
+inpar.nolls = 4:8;
+inpar.coeffs = [0.0, 0.0, 0.0, 0.0, 0.0];  % [Waves RMS]
+
+%-- Give offsets for the vortex mask
+inpar.offsetX = 0;    % [samples in the pupil-plane]
+inpar.offsetY = 0; 
+
+%-- Parameters for SMF (Thorlabs SM600 in this case)
+%     % link: https://www.thorlabs.com/NewGroupPage9_PF.cfm?ObjectGroup_ID=949
+fiber_props.core_rad = 5.5e-6;% Core radius [um]
+fiber_props.n_core = 1.4436;% core index (interp @220nm)
+fiber_props.n_clad = 1.4381;% cladding index (interp @220nm)
+fiber_props.type = 'gaussian';
+
+%-- Define parameters for falco MFT propagator
+%<> NEED TO FIGURE THESE OUT
+    % these don't matter in themselves as long as they are consistent w/ each 
+    % other and with lambda
+% OPTION 1: define focal length and pup diameter manually
+%foc = 11e-3;      %[m] final focal length
+DPup = 2.45e-3;    %[m] pupil size 
+% OPTION 2: solve for focal length based on ideal Fnum and pup diameter
+Fnum = getMFD(fiber_props,inpar.lambda0)/(inpar.lambda0*1.4); % focal ratio of the beam at the fiber
+foc = Fnum*DPup;
+fprintf('Focus in use: %f [mm]\n',foc*1e3)
+
+% Since using falco MFT propogator, can choose our final image sampling
+lambda0Fnum_samp = 50; %[samples/ (lam0 F#)] in units of samples in the image plane
+im_size = 10;    %[lam0/D] field of view in final image plane
+
+inpar.numRings = 3;
+inpar.wGap = 25.4/10916*inpar.apDia0/2;
+
+%% Wedge & ADC initial parameters
+
+wType = 'wedge';
+
+inpar.p = 1.0561;%inpar.lin_offset(1);%1.1404;
+inpar.wedge_mat = 'CaF2';
+wedge_angle = atan(890.16*(inpar.p*inpar.lambda0)/(inpar.keckD*(getRefractiveIndex(inpar.wedge_mat ,1e6*inpar.lambda0) - 1)));
+
+%ADC Wedge Data
+wedge_ADC_1 = 'BaF2';
+wedge_ADC_2 = 'CaF2';
+wedge_ADC_3 = 'ZnSe';
+
+% inpar.wedge_ADC = 0.5 * pi/180; %Thorlabs 30 arcminute CaF2 wedge
+% inpar.n1_ADC = getRefractiveIndex(wedge_ADC_1, 1e6*inpar.lambda0);
+% inpar.n2_ADC = getRefractiveIndex(wedge_ADC_2, 1e6*inpar.lambda0);
+% inpar.n3_ADC = getRefractiveIndex(wedge_ADC_3, 1e6*inpar.lambda0);
+
+inpar.phi1_ADC = 7.0516 * pi/180;
+inpar.phi2_ADC = 3.8050 * pi/180;
+inpar.phi3_ADC = 1.1465 * pi/180;
+
+wvs = py.numpy.array(1e6*inpar.lambdas);
+inpar.n0 = 0;
+inpar.n1 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, baf2_args(1,:),baf2_args(2,:),baf2_args(3,:),baf2_args(4,:),baf2_args(5,:),baf2_args(6,:));
+inpar.n2 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, caf2_args(1,:),caf2_args(2,:),caf2_args(3,:),caf2_args(4,:),caf2_args(5,:),caf2_args(6,:));
+inpar.n3 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, znse_args(1,:),znse_args(2,:),znse_args(3,:),znse_args(4,:),znse_args(5,:),znse_args(6,:));
+
+% inpar.clocking = -88.1818;%-86.3938;%-179.976/2;
+inpar.clocking = deg2rad(76.3636); %
+
+% inpar.clocking = deg2rad(77.2727); %SPP
+
+inpar.tilt1 = 0;
+
+%% Generate the coordinate system
+
+%-- Coordinates in the focal plane
+coordsPP = generateCoordinates(inpar.N);% Creates NxN arrays with coordinates 
+% Helpful for plotting: get axes coords in pupil radii
+inpar.xvalsPP = coordsPP.xvals/inpar.apRad;
+inpar.yvalsPP = coordsPP.yvals/inpar.apRad;
+% Used in vortex mask code
+inpar.xvals = inpar.xvalsPP;
+inpar.yvals = inpar.yvalsPP;
+% Used in wedge/ADC code
+inpar.wyvals = coordsPP.yvals;
+
+%-- Coordinates in the pupil plane
+Nxi = im_size*lambda0Fnum_samp;
+inpar.Nwedge = Nxi;
+coordsFP = generateCoordinates( Nxi );
+% Helpful for plotting: get axes coords in lam/D 
+inpar.xvalsFP = coordsFP.xvals/lambda0Fnum_samp;
+inpar.yvalsFP = coordsFP.yvals/lambda0Fnum_samp;
+
+%-- Key values for getting scaling right using falco MFT propagator
+% Lambda over D of central wavelength in meters at final focal plane
+lambda0Fnum_meters = inpar.lambda0*foc/DPup;
+
+% "pixel" size in pupil and image planes
+coordsPP.dx  = DPup/(2*inpar.apRad);   % meters/sample
+coordsFP.dx = lambda0Fnum_meters/lambda0Fnum_samp;     % meters/sample
+
+%% Create array with pupil function
+
+PUPIL = makeKeckPupil(2*inpar.apRad, inpar.N );
+totalPower0 = sum(abs(PUPIL(:)));
+% [normI, totalPower0] = getNormalization(PUPIL);% Normalization factors
+
+% inpar.lambdaOverD = lambda0Fnum_samp; %lambdafnum / foc
+% inpar.lambdaOverD = lambda0Fnum_samp; %inpar.N/inpar.apRad/2; % lam/D in units of samples in the image plane
+inpar.lambdaOverD = 8;
+
+% Used in the wedge/ADC code
+inpar.lam0OverD_meters = lambda0Fnum_meters/foc; %inpar.lambda0/inpar.keckD; %lambda0Fnum_meters; 
+% inpar.lam0OverD_rad = inpar.lambda0/DPup; %lambda0Fnum_meters;
+
+figure();
+imagesc(inpar.xvalsPP,inpar.yvalsPP,PUPIL); 
+axis image;
+axis([-1 1 -1 1]);
+title('Pupil');
+colorbar; 
+colormap(parula(256));
+drawnow;
+
+addpath(['..' filesep '..' filesep 'falco-matlab' filesep 'lib' filesep 'utils']);
+
+%% Broadband PSF w/o Vortex (doesn't work for keck pupil in current implementaion)
+
+% phz = generateZernike_fromList( inpar.nolls, inpar.coeffs, PUPIL, inpar.apRad, coordsPP);
+% 
+% Epup = nan(inpar.N,inpar.N,inpar.numWavelengths);
+% for ch = 1:inpar.numWavelengths
+%     
+%     Epup(:,:,ch) = exp(1i*phz*inpar.lambda0/inpar.lambdas(ch)).*PUPIL;
+%     
+%     subplot(1,inpar.numWavelengths,ch);
+%     imagesc(inpar.xvalsPP,inpar.yvalsPP,angle(Epup(:,:,ch)));
+%     axis image; 
+%     axis([-1 1 -1 1]);
+%     title(['Phase at ',num2str(inpar.lambdas(ch)*1e9),'nm']);
+%     colorbar; 
+%     colormap(parula(256));
+% end
+
