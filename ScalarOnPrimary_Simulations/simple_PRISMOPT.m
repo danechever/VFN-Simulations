@@ -84,4 +84,6 @@ disp(tilt_all(:,I));
 
 tilt_valsCopy = tilt_all;
 
+clocking = sampall(I) - sampall(I)/100;
+
 end

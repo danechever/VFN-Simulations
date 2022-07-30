@@ -22,6 +22,7 @@ py.importlib.import_module('triple_prism');
 
 % Provide path where the DM Basis file is located
 inpar.dmBasisPath = '/media/Data_Drive/VFN/ScalarOnPrimaryData/';
+%%
 sellmeir1coeffs;
 %% Load Input Parameters
 
@@ -32,7 +33,7 @@ sppvfnConfig;
 
 inpar.magfactor = 890.16;
 
-cType = 'adc';
+cType = 'wedge';
 
 %% Generate Coordinate System
 
@@ -410,18 +411,29 @@ if strcmpi(cType, 'adc')
     
 elseif strcmpi(cType, 'wedge')
     
+    [inpar.tilt_valsCopy, inpar.clocking, inpar.I] = simple_PRISMOPT(inpar);
+    
+    wphz = simplePRISM(inpar);
+    
     for ch = 1:inpar.numWavelengths
         
-        inpar.pyyo = -1*pyyCopy(ch);
-    
-        %Requisite difference in phase computed here
-        wphz = simplewedge_max(inpar, inpar.lambdas(ch));
-    
-        phzW = (phz*inpar.lambda0/inpar.lambdas(ch)) - wphz;
+        
+        
+        phzW = phz - wphz(:,:,ch);%phz + wphz(ch);
     
         %Epup(:,:,ch) = exp(1i*phz*inpar.lambda0/inpar.lambdas(ch)).*inpar.PUPIL;
-        Epupw(:,:,ch) = exp(1i*wphz).*PUPIL;
+        Epupw(:,:,ch) = exp(1i*wphz(:,:,ch)).*PUPIL;
         Epup_Wedge(:,:,ch) = exp(1i*phzW).*PUPIL;
+%         inpar.pyyo = -1*pyyCopy(ch);
+%     
+%         %Requisite difference in phase computed here
+%         wphz = simplewedge_max(inpar, inpar.lambdas(ch));
+%     
+%         phzW = (phz*inpar.lambda0/inpar.lambdas(ch)) - wphz;
+%     
+%         %Epup(:,:,ch) = exp(1i*phz*inpar.lambda0/inpar.lambdas(ch)).*inpar.PUPIL;
+%         Epupw(:,:,ch) = exp(1i*wphz).*PUPIL;
+%         Epup_Wedge(:,:,ch) = exp(1i*phzW).*PUPIL;
     
         subplot(1,inpar.numWavelengths,ch);
         imagesc(inpar.xvalsPP,inpar.yvalsPP,angle(Epupw(:,:,ch))/2/pi);
