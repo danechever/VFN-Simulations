@@ -18,5 +18,9 @@ function MFD = getMFD( fiber_props, lambda )
     
     % Mode field diameter
     MFD = 2*fiber_props.core_rad*(0.65 + 1.619*V.^-1.5 + 2.879*V.^-6);
-
+    
+    if isfield(fiber_props,'usePetermannMFD') && fiber_props.usePetermannMFD 
+        MFD = MFD - 2*fiber_props.core_rad*(0.016 + 1.561*V.^-7);
+    end
+    
 end
