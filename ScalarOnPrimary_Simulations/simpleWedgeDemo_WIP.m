@@ -42,10 +42,10 @@ im_size = 10;    %[lam0/D] field of view in final image plane
 
 wType = 'wedge';    % options: 'wedge', 'adc'
 
-wedge_mat = 'NBK7';     % wedge material ('NBK7', 'CaF2', 'BaF2', 'ZnSe')
-n_wedge = getRefractiveIndex(wedge_mat, lambda0);   % refractive index at central wavelength
-beam_dev = 1.1*lambda0/beamD;    %[rads] Beam deviation to simulate at central wavelength
-wedge_angle = atan2(beam_dev,(n_wedge-1));   % [rads] wedge angle to use
+wedge_mat = 'caf2';     % wedge material ('NBK7', 'CaF2', 'BaF2', 'ZnSe')
+%n_wedge = getRefractiveIndex(wedge_mat, lambda0);   % refractive index at central wavelength
+%beam_dev = 1.1*lambda0/beamD;    %[rads] Beam deviation to simulate at central wavelength
+wedge_angle = deg2rad(-75.9266);%atan2(beam_dev,(n_wedge-1));   % [rads] wedge angle to use
         % equation from max: atan(890.16*(inpar.p*inpar.lambda0)/(inpar.keckD*(getRefractiveIndex(inpar.wedge_mat ,1e6*inpar.lambda0) - 1)));
 
 %% Generate the coordinate system

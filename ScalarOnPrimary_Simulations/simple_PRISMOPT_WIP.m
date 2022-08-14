@@ -1,4 +1,4 @@
-function [tilt_valsCopy, clocking, I] = simple_ADCOPT(inpar)
+function [tilt_valsCopy, alpha, I] = simple_PRISMOPT_WIP(inpar)
 
 %% Gridscan optimization
     inpar.lam0OverD = inpar.lambdas(ceil(inpar.numWavelengths / 2)) / inpar.keckD;
@@ -11,14 +11,15 @@ function [tilt_valsCopy, clocking, I] = simple_ADCOPT(inpar)
     dz = py.tuple(dz);
     dz = py.numpy.array(dz);
 
-    samp = linspace(0,90,100);
+    samp = linspace(-89,89,178);%linspace(0,90,100);
+    
     tilt_vals = [];
 
-    for i = 1:100
+    for i = 1:178
     
-        clocking = deg2rad(samp(i));
+        alpha = deg2rad(samp(i));
     %     disp(clocking);
-        tilt = py.singleprism.singleprism(dz,inpar.n0,inpar.n1,inpar.n2,inpar.n3,inpar.phi1_ADC,inpar.phi2_ADC,inpar.phi3_ADC, clocking,0);
+        tilt = py.singleprism.singleprism(dz,inpar.n0,inpar.n0,inpar.n2,inpar.n0,inpar.phi1_ADC,inpar.phi2_ADC,inpar.phi3_ADC, alpha,0);
     
         tilt = tilt.tolist();
     
@@ -60,7 +61,7 @@ function [tilt_valsCopy, clocking, I] = simple_ADCOPT(inpar)
 %     hold off
 
     [M,I] = min(tiltsums);
-    clocking = samp(I);
+    alpha = samp(I);
     disp(M);
     disp(I);
     disp(samp(I));

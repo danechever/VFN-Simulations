@@ -23,7 +23,7 @@ dz = dzCopy*inpar.magfactor;
 
 for i = 1:inpar.numWavelengths
    
-    n1(i) = getRefractiveIndex('mgf2',inpar.lambdas(i));
+    n1(i) = getRefractiveIndex('caf2',inpar.lambdas(i));
     
 end
 
@@ -35,9 +35,9 @@ tilt_vals = [];
 tilt_all = [];
 tiltsums_all = [];
 
-for j = 1:178
+for j = 1:1
 jv = samp2(j);
-for i = 1:100
+for i = 1:1
     
     alpha = deg2rad(samp(i));
 %     j = deg2rad(j);
@@ -67,7 +67,7 @@ for i = 1:100
     u1 = py.snell_3d.snell_3d(u0,norm1,n0,n1);
     
     %%LEAVING PRISM
-    normf = py.numpy.array([py.numpy.sin(alpha)*py.numpy.cos(0), py.numpy.sin(alpha)*py.numpy.sin(0), py.numpy.cos(0)]);
+    normf = py.numpy.array([py.numpy.sin(alpha)*py.numpy.cos(0), py.numpy.sin(alpha)*py.numpy.sin(0), py.numpy.cos(alpha)]);
     u1f = py.snell_3d.snell_3d(u1,normf,n1,n0);
 
     u1f = u1f.tolist();

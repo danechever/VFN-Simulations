@@ -53,7 +53,7 @@ for i = 1:100
     u1 = py.snell_3d.snell_3d(u0,norm1,n0,n1);
     
     %%LEAVING PRISM
-    normf = py.numpy.array([py.numpy.sin(alpha)*py.numpy.cos(0), py.numpy.sin(alpha)*py.numpy.sin(0), py.numpy.cos(0)]);
+    normf = py.numpy.array([py.numpy.sin(alpha)*py.numpy.cos(0), py.numpy.sin(alpha)*py.numpy.sin(0), py.numpy.cos(alpha)]);
     u1f = py.snell_3d.snell_3d(u1,normf,n1,n0);
 
     u1f = u1f.tolist();

@@ -70,6 +70,15 @@ function n = getRefractiveIndex(material,lambda)
                 warning('ZnSe coefficients only valid between 0.54-18.2um; update them in code if you want more wavelengths')
             end
 
+        case 'mgf2' %'MgF2'
+            % Source: https://refractiveindex.info/?shelf=main&book=ZnSe&page=Connolly
+            B0 = 0;
+            B1 = 0.48755108;
+            C1 = 0.04338408^2;
+            B2 = 0.39875031;
+            C2 = 0.09461442^2;
+            B3 = 2.3120353;
+            C3 = 23.793604^2;
         otherwise
             error([material,'not yet implemented.']);
     end

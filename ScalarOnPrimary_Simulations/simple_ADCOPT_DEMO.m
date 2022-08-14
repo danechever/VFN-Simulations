@@ -1,9 +1,9 @@
-function [tilt_valsCopy, clocking, I] = simple_ADCOPT(inpar)
+function [tilt_valsCopy, clocking, I] = simple_ADCOPT_DEMO(inpar)
 
 %% Gridscan optimization
     inpar.lam0OverD = inpar.lambdas(ceil(inpar.numWavelengths / 2)) / inpar.keckD;
 
-    dz = inpar.pyyCopy*inpar.lam0OverD;
+    dz = zeros(1,5); %inpar.pyyCopy*inpar.lam0OverD;
 
     % dz = pyyCopy*inpar.lam0OverD_meters; %MFT Value
 
@@ -14,11 +14,11 @@ function [tilt_valsCopy, clocking, I] = simple_ADCOPT(inpar)
     samp = linspace(0,90,100);
     tilt_vals = [];
 
-    for i = 1:100
+%     for i = 1:100
     
-        clocking = deg2rad(samp(i));
+        clocking = deg2rad(inpar.clocking);
     %     disp(clocking);
-        tilt = py.singleprism.singleprism(dz,inpar.n0,inpar.n1,inpar.n2,inpar.n3,inpar.phi1_ADC,inpar.phi2_ADC,inpar.phi3_ADC, clocking,0);
+        tilt = py.triple_prism.triple_prism(dz,inpar.n0,inpar.n1,inpar.n2,inpar.n3,inpar.phi1_ADC,inpar.phi2_ADC,inpar.phi3_ADC, clocking,0);
     
         tilt = tilt.tolist();
     
@@ -31,20 +31,20 @@ function [tilt_valsCopy, clocking, I] = simple_ADCOPT(inpar)
         tilt_out = tilt_out/890.16;
     
         % Wavelength dependent dispersion
-        tilt_vals(:,i) = tilt_out';
+        tilt_vals = tilt_out';
     %     for j = 1:11
     %         tilt_vals(:,i) = tilt_out;
     %     end
     
         % Sum of dispersion at each wavelength squared
-        tiltsums(i) = sum(tilt_out.^2);
+        tiltsums = sum(tilt_out.^2);
     
         %Slope of ADC induced tilt
-        tiltslopes(i) = tilt_out(end) - tilt_out(1);
+        tiltslopes = tilt_out(end) - tilt_out(1);
     
-    end
+%     end
 
-    slopes = tilt_vals(2,:) - tilt_vals(1,:);
+%     slopes = tilt_vals(2,:) - tilt_vals(1,:);
 
 %     figure()
 %     hold on
@@ -60,11 +60,11 @@ function [tilt_valsCopy, clocking, I] = simple_ADCOPT(inpar)
 %     hold off
 
     [M,I] = min(tiltsums);
-    clocking = samp(I);
-    disp(M);
-    disp(I);
-    disp(samp(I));
-    disp(tilt_vals(:,I));
+%     clocking = samp(I);
+%     disp(M);
+%     disp(I);
+%     disp(samp(I));
+%     disp(tilt_vals(:,I));
     
     tilt_valsCopy = tilt_vals;
 

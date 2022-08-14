@@ -19,6 +19,7 @@ addpath(genpath(fullfile('..','..','VFN-Lab')));
 % Import Python functions
 py.importlib.import_module('sellmeir1');
 py.importlib.import_module('triple_prism');
+py.importlib.import_module('singleprism');
 
 % Provide path where the DM Basis file is located
 inpar.dmBasisPath = '/media/Data_Drive/VFN/ScalarOnPrimaryData/';
@@ -378,7 +379,7 @@ inpar.phi2_ADC = 3.8050 * pi/180;
 inpar.phi3_ADC = 1.1465 * pi/180;
 
 wvs = py.numpy.array(1e6*inpar.lambdas);
-inpar.n0 = 0;
+inpar.n0 = 1.000293;
 inpar.n1 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, baf2_args(1,:),baf2_args(2,:),baf2_args(3,:),baf2_args(4,:),baf2_args(5,:),baf2_args(6,:));
 inpar.n2 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, caf2_args(1,:),caf2_args(2,:),caf2_args(3,:),caf2_args(4,:),caf2_args(5,:),caf2_args(6,:));
 inpar.n3 = py.sellmeir1.sellmeir1(wvs, 273.15 + 3, znse_args(1,:),znse_args(2,:),znse_args(3,:),znse_args(4,:),znse_args(5,:),znse_args(6,:));
@@ -398,6 +399,10 @@ if strcmpi(cType, 'adc')
         %Epup(:,:,ch) = exp(1i*phz*inpar.lambda0/inpar.lambdas(ch)).*inpar.PUPIL;
         Epupw(:,:,ch) = exp(1i*wphz(:,:,ch)).*PUPIL;
         Epup_Wedge(:,:,ch) = exp(1i*phzW).*PUPIL;
+        
+        disp('here')
+        disp(max(max(wphz(:,:,ch)/2/pi))-min(min(wphz(:,:,ch)/2/pi)));
+
     
         subplot(1,inpar.numWavelengths,ch);
         imagesc(inpar.xvalsPP,inpar.yvalsPP,angle(Epupw(:,:,ch)));
@@ -411,13 +416,11 @@ if strcmpi(cType, 'adc')
     
 elseif strcmpi(cType, 'wedge')
     
-    [inpar.tilt_valsCopy, inpar.clocking, inpar.I] = simple_PRISMOPT(inpar);
+    [inpar.tilt_valsCopy, inpar.clocking, inpar.I] = simple_PRISMOPT_WIP(inpar);
     
-    wphz = simplePRISM(inpar);
+    wphz = simpleADC(inpar);
     
     for ch = 1:inpar.numWavelengths
-        
-        
         
         phzW = phz - wphz(:,:,ch);%phz + wphz(ch);
     
