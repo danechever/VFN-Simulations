@@ -4,7 +4,6 @@
 clear; %close all; 
 addpath(genpath(fullfile('VFNlib')));
 addpath(genpath(fullfile('..','falco-matlab')))
-addpath(genpath(fullfile('..','VFN-Lab','AnalysisCode')))
 
 %% Input parameters 
 
@@ -286,7 +285,7 @@ end
 %-- Compute azimuthally-averaged performance
 for ch = 1:numWavelengths
     % Compute average
-    [tmpAvg, qvec] = VFN_An_radAverage(eta_maps(:,:,ch), [Nxi/2+1 Nxi/2+1]);
+    [tmpAvg, qvec] = radialAverage(eta_maps(:,:,ch), [Nxi/2+1 Nxi/2+1]);
     
     % Yes, I know it's not efficient to recreate matrix on every itr., I
     % don't care in this particular application...
@@ -361,7 +360,7 @@ if numWavelengths > 1
         % NOTE::: This averaging isn't necessary since we can just take the
         % mean() of eta_pAvgs and it will give the same result but I do it
         % here for completeness
-    [eta_pAvg_BB, ~] = VFN_An_radAverage(eta_map_BB, [Nxi/2+1 Nxi/2+1]);
+    [eta_pAvg_BB, ~] = radialAverage(eta_map_BB, [Nxi/2+1 Nxi/2+1]);
     
     % Plot Linear Scale
     figure(9);
