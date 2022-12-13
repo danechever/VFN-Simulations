@@ -14,8 +14,8 @@ addpath(genpath(fullfile('..','falco-matlab')))
   % Input matrices should be square, powers of 2 (256x256, 2048x2048, 4096x4096, etc.)
   % TLDR ==>> only provide one filename for each type of file and use %d
   %           to replace wavelength values and only provide square matrices
-ampflnm = 'UCSB_SVFN_MaskDemo\\transmission_%2dum_SiSilica.txt';     % Amplitude (transmission) file
-phsflnm = 'UCSB_SVFN_MaskDemo\\phase_%2dum_SiSilica.txt';     % Amplitude (transmission) file
+ampflnm = 'UCSB_SVFN_MaskDemo/transmission_%2dum_SiSilica.txt';     % Amplitude (transmission) file
+phsflnm = 'UCSB_SVFN_MaskDemo/phase_%2dum_SiSilica.txt';     % Amplitude (transmission) file
 
 %-- Define spatial sampling in pupil plane
   % (This should be your input grid size: 256x256, 1024x1024, 4096x4096, etc.)
