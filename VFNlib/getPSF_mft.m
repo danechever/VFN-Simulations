@@ -14,7 +14,7 @@ function [iPSF, PSF] = getPSF_mft( Epup, lambdas, foc, coordsPP, coordsFP )
 %       coordsFP: Focal-plane coordinates structure
 %               - Must contain: N (num pix), dx (pix resolution in m)
 %   Outputs:
-%       iPSF: 2D array with point spread function (normalized irradiance (JOSH: Commented out normalized irradiance)) 
+%       iPSF: 2D array with point spread function (normalized irradiance)
 %       PSF:  cube with complex-valued electric field in focal plane
 
 
@@ -27,5 +27,5 @@ function [iPSF, PSF] = getPSF_mft( Epup, lambdas, foc, coordsPP, coordsFP )
     end
 
     iPSF = mean(abs(PSF).^2,3);
-  %  iPSF = iPSF/max(iPSF(:));
+    iPSF = iPSF/max(iPSF(:));
 end
