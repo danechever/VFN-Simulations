@@ -1,4 +1,5 @@
 %% Input Parameters
+% HOME PATH FOR THIS FILE - \VFN-Simulations\ScalarOnPrimary_Simulations
 
 %-- Provide regular parameters
 % Define sampling info
@@ -10,7 +11,11 @@ inpar.apDia0 = 2 * inpar.apRad;
 inpar.lambda0 = 2.2e-6; %central wavelength
 % fracBW = 0.2; % \Delta\lambda/\lambda
 inpar.fracBW = 0.1818; %\Delta\lambda/\lambda
-inpar.numWavelengths = 5; % number of discrete wavelengths 
+
+%***************************************************************************%
+inpar.numWavelengths = 51; % number of discrete wavelengths
+%***************************************************************************%
+
 inpar.lambdas = getWavelengthVec(inpar.lambda0, inpar.fracBW, inpar.numWavelengths);% array of wavelengths (meters)
 
 inpar.keckD = 10.949;

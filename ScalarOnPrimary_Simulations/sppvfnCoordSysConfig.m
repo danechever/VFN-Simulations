@@ -1,3 +1,5 @@
+%HOME PATH FOR THIS FILE - \VFN-Simulations\ScalarOnPrimary_Simulations
+
 %-- Coordinates in the focal plane
 coordsPP = generateCoordinates(inpar.N);% Creates NxN arrays with coordinates 
 % Helpful for plotting: get axes coords in pupil radii
