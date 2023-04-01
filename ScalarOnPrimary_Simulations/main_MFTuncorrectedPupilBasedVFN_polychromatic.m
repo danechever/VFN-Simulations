@@ -254,12 +254,16 @@ text(mean(inpar.lambdas/inpar.lambda0),mean(pyy),txt);
 %-- Null value vs wavelength offset from central wavelength
 figure();
 subplot(1,1,1);
-semilogy(inpar.lambdas/inpar.lambda0,eta_onAx','-o','Color','r'); %lambdas/lambda0,,'-o','Color','r'
+semilogy(inpar.lambdas/inpar.lambda0,eta_onAx','-o','Color','r'); hold on %lambdas/lambda0,,'-o','Color','r'
+yline(max(eta_onAx)); hold on
 ylim([1e-8 1]);
 title(['Charge ' num2str(inpar.charge) ' ' pType ' VFN Null Value vs \lambda/\lambda0'])
 xlabel('\lambda/\lambda0')
 ylabel('\eta')
 grid on
+nullFloor = floor(log10(max(eta_onAx)));
+txt = ['Broadband Nulling Ceiling: 1e' num2str(nullFloor)];
+text(mean(inpar.lambdas/inpar.lambda0),1*10^(ceil(log10(max(eta_onAx)))),txt);
 
 %-- Actual positional offset of null for x and y overlayed
 figure();
