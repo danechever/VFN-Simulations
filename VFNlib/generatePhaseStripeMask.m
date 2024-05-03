@@ -1,4 +1,4 @@
-function mask = generatePhaseStripeMask( phzStep, clockAng_deg, period_samps, coords, offsets_samps )
+function mask = generatePhaseStripeMask( phzStep, clockAng_deg, period_samps, oddOrEven, coords, offsets_samps )
 %mask = generatePhaseStripeMask( phzStep, clockAng, coords, offsets )
 %   Generates array with representation of the stripe mask 
 %
@@ -6,6 +6,7 @@ function mask = generatePhaseStripeMask( phzStep, clockAng_deg, period_samps, co
 %       phzStep - the phase at each wavelength sample [nWvls x 1]
 %       clockAng_deg - The clocking angle in degrees 
 %       period - The period of the stripes in units of pupil diameters 
+%       oddOrEven - 'odd' makes an odd phase function, 'even' makes an even
 %       coords - The coordinate system structure 
 %       offsets - x and y offsets to the center boundary 
 %       
@@ -27,7 +28,14 @@ function mask = generatePhaseStripeMask( phzStep, clockAng_deg, period_samps, co
     % Yp = RHO.*sin(THETA-clockAng_rad);
 
     for index = 1:numel(phzStep)
-        phz = phzStep(index)*sign(sin(2*pi*Xp/period_samps))/2;
+        switch lower(oddOrEven)
+            case 'odd'
+                phz = phzStep(index)*sign(sin(2*pi*Xp/period_samps))/2;
+            case 'even'
+                phz = phzStep(index)*sign(cos(2*pi*Xp/period_samps))/2;
+        end
+        % phz(phz==0) = phzStep(index)/2;
+        phz(:,coords.N/2+1) = 0;
         mask(:,:,index) = exp(1i*phz);
     end
 
